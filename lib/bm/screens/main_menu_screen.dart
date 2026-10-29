@@ -4,6 +4,11 @@ import '../design/bm_theme.dart';
 import '../widgets/bm_button.dart';
 import '../widgets/bm_panel.dart';
 import '../widgets/studio_background.dart';
+import '../monetisation/ui/admin_dashboard_screen.dart';
+import '../monetisation/ui/rewards_screen.dart';
+import '../monetisation/ui/shop_screen.dart';
+import '../monetisation/ui/tournaments_screen.dart';
+import '../monetisation/ui/vip_screen.dart';
 import '../race/turbo_race_lobby_screen.dart';
 import 'matchmaking_screen.dart';
 import 'settings_screen.dart';
@@ -30,7 +35,15 @@ class _BmMainMenuScreenState extends State<BmMainMenuScreen> {
     _MenuTile('REWARDS', Icons.card_giftcard_rounded, Color(0xFFFF4E87)),
     _MenuTile('SHOP', Icons.shopping_cart_rounded, Color(0xFFFFB020)),
     _MenuTile('TURBO RACE', Icons.directions_run_rounded, Color(0xFFFF4E87)),
+    _MenuTile('VIP', Icons.workspace_premium_rounded, Color(0xFFFFCB45)),
+    _MenuTile('TOURNAMENT ADMIN', Icons.admin_panel_settings_rounded, Color(0xFF00D8F4)),
   ];
+
+  void _push(Widget screen) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => screen),
+    );
+  }
 
   void _openTurboRace() {
     Navigator.of(context).push(
@@ -115,6 +128,14 @@ class _BmMainMenuScreenState extends State<BmMainMenuScreen> {
                           onTap: () => switch (tile.label) {
                             'PRACTICE' => _openMatchmaking(),
                             'TURBO RACE' => _openTurboRace(),
+                            'SHOP' => _push(const ShopScreen()),
+                            'REWARDS' => _push(const DailyRewardsScreen()),
+                            'TOURNAMENTS' =>
+                              _push(const SponsoredTournamentsScreen()),
+                            'VIP' => _push(const VipMembershipScreen()),
+                            'TOURNAMENT ADMIN' =>
+                              _push(const AdminMonetisationDashboardScreen()),
+                            'MY AVATAR' => _push(const InventoryScreen()),
                             _ => _notBuilt(tile.label),
                           },
                         ),
