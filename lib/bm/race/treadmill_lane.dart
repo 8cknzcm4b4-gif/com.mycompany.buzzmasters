@@ -84,8 +84,7 @@ class TreadmillLane extends StatelessWidget {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final travel =
-                    constraints.maxWidth - _runnerSize - _flagWidth;
+                final travel = constraints.maxWidth - _runnerSize - _flagWidth;
                 final fraction = (progress / distance).clamp(0.0, 1.0);
                 return SizedBox(
                   height: _laneHeight,

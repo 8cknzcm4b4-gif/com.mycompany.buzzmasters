@@ -1,31 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Core colour palette for Buzz Masters.
+/// Neon Turbo Quiz Arena palette.
+///
+/// Deep midnight navy surfaces, ultraviolet and electric purple light, neon
+/// cyan highlights and gold reserved for wins, rewards and VIP.
 class BmColors {
   BmColors._();
 
-  static const midnight = Color(0xFF11122A);
-  static const deep = Color(0xFF07060F);
-  static const stage = Color(0xFF1A1040);
-  static const violet = Color(0xFF7545EF);
-  static const cyan = Color(0xFF00D8F4);
-  static const gold = Color(0xFFFFCB45);
-  static const pink = Color(0xFFFF4E87);
-  static const green = Color(0xFF35D07F);
-  static const panel = Color(0xFF1B1C3A);
-  static const panelEdge = Color(0xFF2E2F5C);
-  static const muted = Color(0xFF9AA0C4);
-  static const red = Color(0xFFFF3B3B);
+  static const deep = Color(0xFF03051A);
+  static const midnight = Color(0xFF080D2C);
+  static const stage = Color(0xFF130A3D);
+  static const violet = Color(0xFF7B3CFF);
+  static const purple = Color(0xFFB24DFF);
+  static const cyan = Color(0xFF22E6FF);
+  static const gold = Color(0xFFFFC94A);
+  static const pink = Color(0xFFFF3DAE);
+  static const green = Color(0xFF2EF2A0);
+  static const panel = Color(0xFF10163D);
+  static const panelEdge = Color(0xFF2A3170);
+  static const muted = Color(0xFF8E97C8);
+  static const red = Color(0xFFFF4566);
 
-  /// Per-seat neon accents, mirroring the six podium colours in the design.
+  /// Six lane colours, one per racer seat.
   static const seatColors = <Color>[
-    Color(0xFF3D8BFF),
-    Color(0xFFFF4E87),
-    Color(0xFF35D07F),
-    Color(0xFFFFCB45),
-    Color(0xFF9B6BFF),
-    Color(0xFF00D8F4),
+    Color(0xFFFF3DAE),
+    Color(0xFF22E6FF),
+    Color(0xFFA65BFF),
+    Color(0xFFFFC94A),
+    Color(0xFF2EF2A0),
+    Color(0xFF4D8DFF),
   ];
 }
 
@@ -35,51 +39,65 @@ class BmGradients {
   static const gold = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFFFFE89A), Color(0xFFFFCB45), Color(0xFFE8942B)],
+    colors: [Color(0xFFFFF0B3), Color(0xFFFFC94A), Color(0xFFE08A1E)],
   );
 
   static const silver = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFFFFFFFF), Color(0xFFCDE6FF), Color(0xFF7FA8E8)],
+    colors: [Color(0xFFFFFFFF), Color(0xFFCFE0FF), Color(0xFF8299D6)],
+  );
+
+  static const bronze = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFFFD2A8), Color(0xFFE08A4F), Color(0xFF9A4F26)],
   );
 
   static const violet = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF9B6BFF), Color(0xFF7545EF)],
+    colors: [Color(0xFFB24DFF), Color(0xFF6A2BFF)],
   );
 
   static const cyan = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF5BEBFF), Color(0xFF00D8F4)],
+    colors: [Color(0xFF7AF4FF), Color(0xFF18B8FF)],
   );
 
   static const panel = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF23244A), Color(0xFF161737)],
+    colors: [Color(0xEB161E52), Color(0xEB0A0F30)],
   );
 }
 
 class BmText {
   BmText._();
 
+  /// Bundled display face (SIL OFL), so headings never wait on the network.
+  static const displayFamily = 'Rajdhani';
+
+  /// Rajdhani is narrower than Poppins, so display sizes are scaled to keep
+  /// existing call sites visually balanced.
+  static const _displayScale = 1.14;
+
   static TextStyle display(double size, {Color color = Colors.white}) =>
-      GoogleFonts.poppins(
-        fontSize: size,
-        fontWeight: FontWeight.w900,
-        height: 1.02,
-        letterSpacing: -0.5,
+      TextStyle(
+        fontFamily: displayFamily,
+        fontSize: size * _displayScale,
+        fontWeight: FontWeight.w700,
+        height: 1.0,
+        letterSpacing: 0.6,
         color: color,
       );
 
   static TextStyle title(double size, {Color color = Colors.white}) =>
       GoogleFonts.poppins(
         fontSize: size,
-        fontWeight: FontWeight.w700,
-        height: 1.15,
+        fontWeight: FontWeight.w600,
+        height: 1.2,
         color: color,
       );
 
@@ -94,10 +112,12 @@ class BmText {
 
   static TextStyle label(double size,
           {Color color = BmColors.muted, double spacing = 1.6}) =>
-      GoogleFonts.poppins(
-        fontSize: size,
+      TextStyle(
+        fontFamily: displayFamily,
+        fontSize: size * 1.18,
         fontWeight: FontWeight.w700,
         letterSpacing: spacing,
+        height: 1.1,
         color: color,
       );
 }
@@ -107,8 +127,8 @@ List<BoxShadow> bmGlow(Color color,
         {double blur = 28, double opacity = 0.55}) =>
     [
       BoxShadow(
-        color: color.withOpacity(opacity),
+        color: color.withValues(alpha: opacity),
         blurRadius: blur,
-        spreadRadius: 1,
+        spreadRadius: 0.5,
       ),
     ];

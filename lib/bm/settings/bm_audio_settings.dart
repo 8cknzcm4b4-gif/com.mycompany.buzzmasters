@@ -10,12 +10,15 @@ class BmAudioSettings {
 
   static const soundKey = 'bm_sound_effects';
   static const hapticsKey = 'bm_haptic_feedback';
+  static const musicKey = 'bm_music';
 
   static final ValueNotifier<bool> soundEffects = ValueNotifier<bool>(true);
   static final ValueNotifier<bool> haptics = ValueNotifier<bool>(true);
+  static final ValueNotifier<bool> music = ValueNotifier<bool>(true);
 
   static bool get soundEnabled => soundEffects.value;
   static bool get hapticsEnabled => haptics.value;
+  static bool get musicEnabled => music.value;
 
   static Future<void>? _loading;
   static bool _touched = false;
@@ -30,6 +33,7 @@ class BmAudioSettings {
       if (_touched) return;
       soundEffects.value = prefs.getBool(soundKey) ?? true;
       haptics.value = prefs.getBool(hapticsKey) ?? true;
+      music.value = prefs.getBool(musicKey) ?? true;
     } on Exception {
       // Preferences unavailable: keep the defaults.
     }
@@ -45,6 +49,12 @@ class BmAudioSettings {
     _touched = true;
     haptics.value = value;
     await _write(hapticsKey, value);
+  }
+
+  static Future<void> setMusicEnabled(bool value) async {
+    _touched = true;
+    music.value = value;
+    await _write(musicKey, value);
   }
 
   static Future<void> _write(String key, bool value) async {
@@ -63,5 +73,6 @@ class BmAudioSettings {
     _touched = false;
     soundEffects.value = true;
     haptics.value = true;
+    music.value = true;
   }
 }

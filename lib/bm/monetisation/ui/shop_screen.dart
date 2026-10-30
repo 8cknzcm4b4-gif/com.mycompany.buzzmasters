@@ -50,6 +50,7 @@ class _ShopScreenState extends State<ShopScreen> {
               Row(
                 children: [
                   IconButton(
+                    tooltip: 'Back',
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.arrow_back_rounded,
                         color: Colors.white),
@@ -137,8 +138,7 @@ class _ShopScreenState extends State<ShopScreen> {
                       )
                     : ListView.separated(
                         itemCount: items.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 10),
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
                         itemBuilder: (context, index) =>
                             _ShopItemCard(item: items[index]),
                       ),
@@ -195,7 +195,7 @@ class _ShopItemCard extends StatelessWidget {
             child: Icon(
               item.previewIcon == null
                   ? Icons.auto_awesome_rounded
-                  : IconData(item.previewIcon!, fontFamily: 'MaterialIcons'),
+                  : _previewIcon(item.previewIcon!),
               color: accent,
               size: 26,
             ),
@@ -229,7 +229,8 @@ class _ShopItemCard extends StatelessWidget {
                     label: equipped ? 'EQUIPPED' : 'EQUIP',
                     height: 40,
                     fontSize: 12,
-                    style: equipped ? BmButtonStyle.outline : BmButtonStyle.cyan,
+                    style:
+                        equipped ? BmButtonStyle.outline : BmButtonStyle.cyan,
                     onPressed: equipped
                         ? () => controller.unequip(item.category)
                         : () => controller.equip(item),
@@ -277,8 +278,7 @@ class _ItemDetailsSheetState extends State<ItemDetailsSheet> {
       return;
     }
     setState(() => _working = true);
-    final product = controller.productFor(
-        widget.item.bundleProductIds.first);
+    final product = controller.productFor(widget.item.bundleProductIds.first);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -343,8 +343,7 @@ class _ItemDetailsSheetState extends State<ItemDetailsSheet> {
               child: Icon(
                 widget.item.previewIcon == null
                     ? Icons.auto_awesome_rounded
-                    : IconData(widget.item.previewIcon!,
-                        fontFamily: 'MaterialIcons'),
+                    : _previewIcon(widget.item.previewIcon!),
                 color: Colors.white,
                 size: 40,
               ),
@@ -421,6 +420,7 @@ class InventoryScreen extends StatelessWidget {
               Row(
                 children: [
                   IconButton(
+                    tooltip: 'Back',
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.arrow_back_rounded,
                         color: Colors.white),
@@ -460,8 +460,7 @@ class InventoryScreen extends StatelessWidget {
                                 Icon(
                                   item.previewIcon == null
                                       ? Icons.auto_awesome_rounded
-                                      : IconData(item.previewIcon!,
-                                          fontFamily: 'MaterialIcons'),
+                                      : _previewIcon(item.previewIcon!),
                                   color: Color(item.previewColor),
                                 ),
                                 const SizedBox(width: 12),
@@ -506,3 +505,19 @@ class InventoryScreen extends StatelessWidget {
     );
   }
 }
+
+/// Catalogue preview icons. Release builds tree-shake the icon font, which
+/// only works for constant [IconData], so codes map through this table.
+const _previewIcons = <int, IconData>{
+  0xe0d3: IconData(0xe0d3, fontFamily: 'MaterialIcons'),
+  0xe22c: IconData(0xe22c, fontFamily: 'MaterialIcons'),
+  0xe2c7: IconData(0xe2c7, fontFamily: 'MaterialIcons'),
+  0xe532: IconData(0xe532, fontFamily: 'MaterialIcons'),
+  0xe63a: IconData(0xe63a, fontFamily: 'MaterialIcons'),
+  0xe6d4: IconData(0xe6d4, fontFamily: 'MaterialIcons'),
+  0xe80c: IconData(0xe80c, fontFamily: 'MaterialIcons'),
+  0xe90b: IconData(0xe90b, fontFamily: 'MaterialIcons'),
+};
+
+IconData _previewIcon(int code) =>
+    _previewIcons[code] ?? Icons.auto_awesome_rounded;

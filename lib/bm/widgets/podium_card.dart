@@ -45,12 +45,12 @@ class PodiumCard extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                accent.withOpacity(active ? 0.55 : 0.30),
+                accent.withValues(alpha: active ? 0.55 : 0.30),
                 BmColors.panel.withValues(alpha: 0.92),
               ],
             ),
             border: Border.all(
-              color: accent.withOpacity(active ? 1 : 0.75),
+              color: accent.withValues(alpha: active ? 1 : 0.75),
               width: active ? 2.2 : 1.3,
             ),
             boxShadow: [

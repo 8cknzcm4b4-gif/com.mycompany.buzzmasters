@@ -54,8 +54,7 @@ class VipEntitlement {
   final VipPeriod? period;
   final DateTime? validatedAt;
 
-  bool get isVerified =>
-      isActive && source == EntitlementSource.storeVerified;
+  bool get isVerified => isActive && source == EntitlementSource.storeVerified;
 
   /// True while the store still considers the subscription live, including
   /// Apple/Google's billing-recovery grace period.
@@ -425,7 +424,8 @@ class Tournament {
 }
 
 class TournamentScore {
-  const TournamentScore({required this.playerId, required this.correct, this.tiedBreakMs = 0});
+  const TournamentScore(
+      {required this.playerId, required this.correct, this.tiedBreakMs = 0});
 
   final String playerId;
   final int correct;
@@ -442,7 +442,9 @@ class TournamentScore {
 class MoneyStream {
   const MoneyStream({this.amountPence, this.currency = 'GBP'});
 
-  const MoneyStream.notConnected() : amountPence = null, currency = 'GBP';
+  const MoneyStream.notConnected()
+      : amountPence = null,
+        currency = 'GBP';
 
   final int? amountPence;
   final String currency;

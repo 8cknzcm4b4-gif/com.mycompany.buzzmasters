@@ -18,7 +18,8 @@ void main() {
     race = race
         .applyAnswer(racerId: 'a', correct: true, responseMs: 1000, atMs: 1000)
         .applyAnswer(racerId: 'b', correct: true, responseMs: 5000, atMs: 5000)
-        .applyAnswer(racerId: 'c', correct: false, responseMs: 1000, atMs: 1000);
+        .applyAnswer(
+            racerId: 'c', correct: false, responseMs: 1000, atMs: 1000);
     expect(race.racers.firstWhere((r) => r.id == 'a').speed, SpeedStatus.fast);
     expect(
       race.racers.firstWhere((r) => r.id == 'b').speed,
@@ -107,11 +108,12 @@ void main() {
   test('question cap ends the race when nobody has finished', () {
     final race0 = RaceModel(
       config: const RaceConfig(maxQuestions: 1),
-      racers: [for (final id in ['a', 'b']) RacerProgress(id: id)],
+      racers: [
+        for (final id in ['a', 'b']) RacerProgress(id: id)
+      ],
     ).startCountdown().go().openQuestion();
     final race = race0
-        .applyTimeout(answeredIds: {'a', 'b'}, atMs: 8000)
-        .resolveQuestion();
+        .applyTimeout(answeredIds: {'a', 'b'}, atMs: 8000).resolveQuestion();
     expect(race.phase, RacePhase.results);
     expect(race.questionsAsked, 1);
   });
@@ -234,5 +236,30 @@ void main() {
     );
     expect(race.finishIfDone().phase, RacePhase.racing);
     expect(race.finish().phase, RacePhase.results);
+  });
+
+  test('the safe start keeps grid racers out of the danger zone', () {
+    RaceModel timeoutRound(RaceModel r) => r
+        .openQuestion()
+        .applyTimeout(answeredIds: const {}, atMs: 0).resolveQuestion();
+    var race = RaceModel(
+      config: kTurboRaceConfig,
+      racers: [
+        for (final id in ['a', 'b']) RacerProgress(id: id)
+      ],
+    ).startCountdown().go();
+    for (var q = 0; q < kTurboRaceConfig.dangerFreeQuestions; q++) {
+      expect(race.inDangerZone('a'), isFalse);
+      race = timeoutRound(race);
+      expect(race.racers.every((r) => r.dangerStreak == 0), isTrue);
+      expect(race.racers.any((r) => r.eliminated), isFalse);
+    }
+    // After the safe start the normal warning-then-out rule applies.
+    expect(race.inDangerZone('a'), isTrue);
+    race = timeoutRound(race);
+    expect(race.racers.first.dangerStreak, 1);
+    expect(race.racers.first.eliminated, isFalse);
+    race = timeoutRound(race);
+    expect(race.racers.first.eliminated, isTrue);
   });
 }

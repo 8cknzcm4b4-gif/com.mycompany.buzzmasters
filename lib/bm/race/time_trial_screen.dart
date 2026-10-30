@@ -13,7 +13,7 @@ import '../widgets/studio_background.dart';
 import 'countdown_badge.dart';
 import 'race_model.dart';
 import 'race_sound.dart';
-import 'treadmill_lane.dart';
+import 'race_arena.dart';
 import 'time_trial.dart';
 import 'time_trial_store.dart';
 
@@ -165,9 +165,7 @@ class _TimeTrialScreenState extends State<TimeTrialScreen> {
   }
 
   void _pick(int index) {
-    if (_selected != null ||
-        _over ||
-        _race.phase != RacePhase.questionActive) {
+    if (_selected != null || _over || _race.phase != RacePhase.questionActive) {
       return;
     }
     final correct = index == _question.correctIndex;
@@ -252,8 +250,7 @@ class _TimeTrialScreenState extends State<TimeTrialScreen> {
 
     // The paused stretch must not count towards the player's response time.
     if (clockWasRunning) {
-      _questionOpenedMs +=
-          DateTime.now().millisecondsSinceEpoch - pausedAt;
+      _questionOpenedMs += DateTime.now().millisecondsSinceEpoch - pausedAt;
       _clock.start();
     }
 
@@ -280,8 +277,8 @@ class _TimeTrialScreenState extends State<TimeTrialScreen> {
     final elapsed = _clock.elapsedMilliseconds;
     final ghost = _ghost;
     final track = _recorder.build(elapsedMs: elapsed);
-    final newBest = track != null &&
-        (ghost == null || elapsed < ghost.elapsedMs);
+    final newBest =
+        track != null && (ghost == null || elapsed < ghost.elapsedMs);
     if (newBest) unawaited(widget.store.saveBest(track));
     unawaited(RaceSound.finish());
     final finished = _me.finished;
@@ -308,30 +305,16 @@ class _TimeTrialScreenState extends State<TimeTrialScreen> {
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       child: Column(
         children: [
-          Row(
-            children: [
-              IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-              ),
-              Expanded(
-                child: Text(
-                  'TIME TRIAL',
-                  textAlign: TextAlign.center,
-                  style: BmText.display(18, color: BmColors.gold),
-                ),
-              ),
-              SizedBox(
-                width: 48,
-                child: Center(
-                  child: BmIconButton(
-                    icon: Icons.settings_rounded,
-                    color: BmColors.gold,
-                    onPressed: _openSettings,
-                  ),
-                ),
-              ),
-            ],
+          ArenaHeader(
+            title: 'TIME TRIAL',
+            subtitle: 'RACE YOUR BEST GHOST',
+            titleColor: BmColors.gold,
+            trailing: BmIconButton(
+              icon: Icons.settings_rounded,
+              color: BmColors.gold,
+              tooltip: 'Settings',
+              onPressed: _openSettings,
+            ),
           ),
           const SizedBox(height: 4),
           _clockLine(),
@@ -377,40 +360,38 @@ class _TimeTrialScreenState extends State<TimeTrialScreen> {
   }
 
   Widget _lanes() {
-    final belt = _clock.elapsedMilliseconds / 40;
     final me = _me;
     final ghostProgress = _ghost?.progressAt(_clock.elapsedMilliseconds);
-    return Column(
-      children: [
-        TreadmillLane(
-          name: 'YOU',
-          position: 1,
-          speed: me.speed,
-          progress: me.progress,
-          distance: _distance,
-          beltOffset: belt,
-          laneColor: BmColors.gold,
-          finished: me.finished,
-          eliminated: false,
-          warning: false,
-          nearFinish: me.progress >= _distance * 0.75,
-        ),
-        if (ghostProgress != null)
-          TreadmillLane(
-            name: 'BEST',
-            position: 0,
-            speed: SpeedStatus.cruising,
-            progress: ghostProgress,
-            distance: _distance,
-            beltOffset: belt,
-            laneColor: BmColors.cyan,
-            finished: ghostProgress >= _distance,
-            eliminated: false,
-            warning: false,
-            nearFinish: ghostProgress >= _distance * 0.75,
-            opacity: 0.55,
+    final started =
+        _race.phase != RacePhase.waiting && _race.phase != RacePhase.countdown;
+    return SizedBox(
+      height: 250,
+      child: RaceArena(
+        distance: _distance,
+        positions: const {},
+        running: started && !_over,
+        hudLabel: 'SOLO RUN',
+        racers: [
+          ArenaRacer(
+            id: 'you',
+            name: 'YOU',
+            color: BmColors.gold,
+            progress: me.progress,
+            speed: me.speed,
+            finished: me.finished,
+            isPlayer: true,
           ),
-      ],
+          if (ghostProgress != null)
+            ArenaRacer(
+              id: 'ghost',
+              name: 'BEST',
+              color: BmColors.cyan.withValues(alpha: 0.55),
+              progress: ghostProgress.round(),
+              speed: SpeedStatus.cruising,
+              finished: ghostProgress >= _distance,
+            ),
+        ],
+      ),
     );
   }
 

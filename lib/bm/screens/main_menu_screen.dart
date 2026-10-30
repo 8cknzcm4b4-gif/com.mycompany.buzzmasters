@@ -1,19 +1,33 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../design/bm_theme.dart';
-import '../widgets/bm_button.dart';
-import '../widgets/bm_panel.dart';
-import '../widgets/studio_background.dart';
-import '../monetisation/ui/admin_dashboard_screen.dart';
 import '../monetisation/ui/rewards_screen.dart';
 import '../monetisation/ui/shop_screen.dart';
 import '../monetisation/ui/tournaments_screen.dart';
 import '../monetisation/ui/vip_screen.dart';
+import '../online/join_game_screen.dart';
+import '../player/player_profile.dart';
+import '../race/race_arena.dart';
+import '../race/race_model.dart';
+import '../race/race_practice_screen.dart';
+import '../race/time_trial_screen.dart';
 import '../race/turbo_race_lobby_screen.dart';
+import '../widgets/bm_button.dart';
+import '../widgets/bm_panel.dart';
+import '../widgets/studio_background.dart';
+import 'friends_screen.dart';
+import 'how_to_play_screen.dart';
+import 'leaderboard_screen.dart';
 import 'matchmaking_screen.dart';
+import 'profile_screen.dart';
 import 'settings_screen.dart';
+import 'welcome_screen.dart';
 
-/// Screen 5 — Main Menu: player header, primary actions, mode grid, tab bar.
+/// Main dashboard: player header, featured Turbo Race, quick modes, the rest
+/// of the game, and a bottom bar whose every tab is a real screen.
 class BmMainMenuScreen extends StatefulWidget {
   const BmMainMenuScreen({super.key});
 
@@ -24,126 +38,36 @@ class BmMainMenuScreen extends StatefulWidget {
 class _BmMainMenuScreenState extends State<BmMainMenuScreen> {
   int _tab = 0;
 
-  static const _tiles = <_MenuTile>[
-    _MenuTile('PRACTICE', Icons.school_rounded, Color(0xFF8B5CF6)),
-    _MenuTile('DAILY QUIZ', Icons.calendar_today_rounded, Color(0xFF00D8F4)),
-    _MenuTile('THEMED QUIZZES', Icons.category_rounded, Color(0xFF3D8BFF)),
-    _MenuTile('RANKED PLAY', Icons.military_tech_rounded, Color(0xFFFF8A3D)),
-    _MenuTile('TOURNAMENTS', Icons.emoji_events_rounded, Color(0xFFFFCB45)),
-    _MenuTile('LEADERBOARDS', Icons.leaderboard_rounded, Color(0xFF35D07F)),
-    _MenuTile('MY AVATAR', Icons.person_rounded, Color(0xFF9B6BFF)),
-    _MenuTile('REWARDS', Icons.card_giftcard_rounded, Color(0xFFFF4E87)),
-    _MenuTile('SHOP', Icons.shopping_cart_rounded, Color(0xFFFFB020)),
-    _MenuTile('TURBO RACE', Icons.directions_run_rounded, Color(0xFFFF4E87)),
-    _MenuTile('VIP', Icons.workspace_premium_rounded, Color(0xFFFFCB45)),
-    _MenuTile('TOURNAMENT ADMIN', Icons.admin_panel_settings_rounded, Color(0xFF00D8F4)),
+  static const _tabs = [
+    (Icons.home_rounded, 'Home'),
+    (Icons.sports_score_rounded, 'Race'),
+    (Icons.leaderboard_rounded, 'Ranks'),
+    (Icons.people_alt_rounded, 'Friends'),
+    (Icons.person_rounded, 'Profile'),
   ];
 
-  void _push(Widget screen) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => screen),
-    );
-  }
-
-  void _openTurboRace() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const TurboRaceLobbyScreen()),
-    );
-  }
-
-  void _openMatchmaking() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const BmMatchmakingScreen()),
-    );
-  }
-
-  void _openSettings() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const BmSettingsScreen()),
-    );
-  }
-
-  void _notBuilt(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: BmColors.panel,
-        content: Text(
-          '$feature is not implemented yet in this build.',
-          style: BmText.body(12),
-        ),
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    unawaited(PlayerProfileStore.ensureLoaded());
   }
 
   @override
   Widget build(BuildContext context) {
-    return StudioScaffold(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-      child: Column(
+    return Scaffold(
+      backgroundColor: BmColors.deep,
+      body: Column(
         children: [
-          _playerHeader(),
-          const SizedBox(height: 14),
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  Image.asset('assets/images/bm_logo.png', width: 210),
-                  const SizedBox(height: 10),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: Image.asset(
-                      'assets/images/bm_hero.png',
-                      height: 120,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  BmButton(
-                    label: 'PLAY NOW',
-                    icon: Icons.play_arrow_rounded,
-                    height: 56,
-                    fontSize: 17,
-                    onPressed: _openMatchmaking,
-                  ),
-                  const SizedBox(height: 10),
-                  BmButton(
-                    label: 'PLAY WITH FRIENDS',
-                    icon: Icons.people_alt_rounded,
-                    style: BmButtonStyle.cyan,
-                    onPressed: () => _notBuilt('Private friend lobbies'),
-                  ),
-                  const SizedBox(height: 18),
-                  GridView.count(
-                    crossAxisCount: 3,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 0.95,
-                    children: [
-                      for (final tile in _tiles)
-                        _MenuTileCard(
-                          tile: tile,
-                          onTap: () => switch (tile.label) {
-                            'PRACTICE' => _openMatchmaking(),
-                            'TURBO RACE' => _openTurboRace(),
-                            'SHOP' => _push(const ShopScreen()),
-                            'REWARDS' => _push(const DailyRewardsScreen()),
-                            'TOURNAMENTS' =>
-                              _push(const SponsoredTournamentsScreen()),
-                            'VIP' => _push(const VipMembershipScreen()),
-                            'TOURNAMENT ADMIN' =>
-                              _push(const AdminMonetisationDashboardScreen()),
-                            'MY AVATAR' => _push(const InventoryScreen()),
-                            _ => _notBuilt(tile.label),
-                          },
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                ],
-              ),
+            child: IndexedStack(
+              index: _tab,
+              children: [
+                _HomeTab(onTab: (i) => setState(() => _tab = i)),
+                const TurboRaceLobbyScreen(showBack: false),
+                const LeaderboardScreen(showBack: false),
+                const FriendsScreen(showBack: false),
+                const ProfileScreen(showBack: false),
+              ],
             ),
           ),
           _bottomBar(),
@@ -152,181 +76,439 @@ class _BmMainMenuScreenState extends State<BmMainMenuScreen> {
     );
   }
 
-  Widget _playerHeader() {
-    return Row(
-      children: [
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: BmGradients.cyan,
-            border: Border.all(color: BmColors.cyan, width: 2),
-            boxShadow: bmGlow(BmColors.cyan, blur: 16, opacity: 0.45),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            'A',
-            style: BmText.display(20, color: const Color(0xFF08111F)),
-          ),
+  Widget _bottomBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF060925),
+        border: Border(
+          top: BorderSide(color: BmColors.violet.withValues(alpha: 0.5)),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        boxShadow: bmGlow(BmColors.violet, blur: 24, opacity: 0.25),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
             children: [
-              Text('Alex', style: BmText.title(14)),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Text('LEVEL 1', style: BmText.label(9, color: BmColors.cyan)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: 0.18,
-                        minHeight: 5,
-                        backgroundColor: Colors.white.withValues(alpha: 0.12),
-                        valueColor: const AlwaysStoppedAnimation(BmColors.cyan),
+              for (var i = 0; i < _tabs.length; i++)
+                Expanded(
+                  child: InkWell(
+                    key: ValueKey('tab-${_tabs[i].$2}'),
+                    onTap: () => setState(() => _tab = i),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 4),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              gradient: _tab == i ? BmGradients.violet : null,
+                              boxShadow: _tab == i
+                                  ? bmGlow(BmColors.violet,
+                                      blur: 14, opacity: 0.6)
+                                  : null,
+                            ),
+                            child: Icon(
+                              _tabs[i].$1,
+                              size: 22,
+                              color: _tab == i ? Colors.white : BmColors.muted,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            _tabs[i].$2.toUpperCase(),
+                            style: BmText.label(8.5,
+                                color:
+                                    _tab == i ? Colors.white : BmColors.muted,
+                                spacing: 0.8),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
             ],
           ),
         ),
-        _currency('1,250', BmColors.gold, Icons.monetization_on_rounded),
-        const SizedBox(width: 8),
-        _currency('45', BmColors.pink, Icons.diamond_rounded),
-      ],
+      ),
     );
   }
+}
 
-  Widget _currency(String value, Color color, IconData icon) {
-    return BmPanel(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      color: color,
-      borderRadius: 20,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+class _HomeTab extends StatelessWidget {
+  const _HomeTab({required this.onTab});
+
+  final ValueChanged<int> onTab;
+
+  @override
+  Widget build(BuildContext context) {
+    void push(Widget screen) =>
+        Navigator.of(context).push(arenaRoute<void>(screen));
+
+    final quick = [
+      _Tile('PRACTICE', 'vs 5 CPU racers', Icons.sports_score_rounded,
+          BmColors.gold, () => push(const RacePracticeScreen())),
+      _Tile('TIME TRIAL', 'beat your ghost', Icons.timer_rounded, BmColors.cyan,
+          () => push(const TimeTrialScreen())),
+      _Tile('JOIN GAME', '6-digit code', Icons.vpn_key_rounded, BmColors.pink,
+          () => push(const JoinGameScreen())),
+    ];
+    final more = [
+      _Tile('CLASSIC SHOW', 'buzzer rounds', Icons.campaign_rounded,
+          BmColors.purple, () => push(const BmMatchmakingScreen())),
+      _Tile('TOURNAMENTS', 'sponsored events', Icons.emoji_events_rounded,
+          BmColors.gold, () => push(const SponsoredTournamentsScreen())),
+      _Tile('REWARDS', 'daily rewards', Icons.card_giftcard_rounded,
+          BmColors.pink, () => push(const DailyRewardsScreen())),
+      _Tile('SHOP', 'cosmetics', Icons.storefront_rounded, BmColors.cyan,
+          () => push(const ShopScreen())),
+      _Tile('MY ITEMS', 'inventory', Icons.backpack_rounded, BmColors.green,
+          () => push(const InventoryScreen())),
+      _Tile('HOW TO PLAY', 'rules & scoring', Icons.help_outline_rounded,
+          BmColors.purple, () => push(const HowToPlayScreen())),
+    ];
+
+    return StudioScaffold(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      showFloor: false,
+      child: Column(
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 5),
-          Text(value, style: BmText.title(12, color: Colors.white)),
+          _header(context, push),
+          const SizedBox(height: 12),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 16),
+              children: [
+                _FeaturedRace(onRace: () => onTab(1)),
+                const SizedBox(height: 14),
+                _sectionTitle('QUICK PLAY'),
+                Row(
+                  children: [
+                    for (final (i, t) in quick.indexed) ...[
+                      if (i > 0) const SizedBox(width: 10),
+                      Expanded(child: _TileCard(tile: t, tall: true)),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _sectionTitle('MORE TO PLAY'),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 2.5,
+                  children: [for (final t in more) _TileCard(tile: t)],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _bottomBar() {
-    const items = [
-      (Icons.home_rounded, 'Home'),
-      (Icons.people_alt_rounded, 'Friends'),
-      (Icons.person_rounded, 'Profile'),
-      (Icons.settings_rounded, 'Settings'),
-    ];
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0B0C1E).withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+  Widget _sectionTitle(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 8, left: 2),
+        child: Row(
+          children: [
+            Container(width: 3, height: 14, color: BmColors.cyan),
+            const SizedBox(width: 8),
+            Text(text, style: BmText.label(11, color: Colors.white)),
+          ],
+        ),
+      );
+
+  Widget _header(BuildContext context, void Function(Widget) push) {
+    return ValueListenableBuilder<PlayerStats>(
+      valueListenable: PlayerProfileStore.current,
+      builder: (context, s, _) => Row(
         children: [
-          for (var i = 0; i < items.length; i++)
-            InkWell(
-              onTap: () {
-                // Settings opens as a page, so the tab itself stays on Home.
-                if (i == 3) {
-                  _openSettings();
-                  return;
-                }
-                setState(() => _tab = i);
-                if (i != 0) _notBuilt(items[i].$2);
-              },
-              borderRadius: BorderRadius.circular(10),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+          GestureDetector(
+            onTap: () => onTab(4),
+            child: Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [
+                  Color.lerp(s.color, Colors.white, 0.3)!,
+                  s.color,
+                ]),
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: bmGlow(s.color, blur: 16, opacity: 0.6),
+              ),
+              child: Text(s.initial,
+                  style: BmText.display(21, color: BmColors.deep)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(s.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: BmText.display(18)),
+                const SizedBox(height: 3),
+                Row(
                   children: [
-                    Icon(
-                      items[i].$1,
-                      size: 21,
-                      color: _tab == i ? BmColors.gold : BmColors.muted,
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      items[i].$2,
-                      style: BmText.label(
-                        9,
-                        color: _tab == i ? BmColors.gold : BmColors.muted,
-                        spacing: 0.4,
+                    Text('LVL ${s.level}',
+                        style: BmText.label(9, color: BmColors.cyan)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: s.levelProgress,
+                          minHeight: 5,
+                          backgroundColor: Colors.white.withValues(alpha: 0.12),
+                          valueColor:
+                              const AlwaysStoppedAnimation(BmColors.cyan),
+                        ),
                       ),
                     ),
                   ],
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: () => push(const VipMembershipScreen()),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: BmGradients.gold,
+                boxShadow: bmGlow(BmColors.gold, blur: 14, opacity: 0.5),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.workspace_premium_rounded,
+                      size: 15, color: Color(0xFF2A1600)),
+                  const SizedBox(width: 4),
+                  Text('VIP',
+                      style:
+                          BmText.display(13, color: const Color(0xFF2A1600))),
+                ],
               ),
             ),
+          ),
+          const SizedBox(width: 8),
+          BmIconButton(
+            icon: Icons.settings_rounded,
+            tooltip: 'Settings',
+            onPressed: () => push(const BmSettingsScreen()),
+          ),
         ],
       ),
     );
   }
 }
 
-class _MenuTile {
-  const _MenuTile(this.label, this.icon, this.color);
+/// Featured Turbo Race card with an animated preview of the race track.
+class _FeaturedRace extends StatefulWidget {
+  const _FeaturedRace({required this.onRace});
 
-  final String label;
-  final IconData icon;
-  final Color color;
+  final VoidCallback onRace;
+
+  @override
+  State<_FeaturedRace> createState() => _FeaturedRaceState();
 }
 
-class _MenuTileCard extends StatelessWidget {
-  const _MenuTileCard({required this.tile, required this.onTap});
+class _FeaturedRaceState extends State<_FeaturedRace> {
+  static const _ids = ['a', 'b', 'c', 'd', 'e', 'f'];
+  final _rng = math.Random(5);
+  late List<int> _progress = [for (final _ in _ids) _rng.nextInt(30)];
+  Timer? _timer;
 
-  final _MenuTile tile;
-  final VoidCallback onTap;
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(milliseconds: 1600), (_) {
+      if (!mounted) return;
+      setState(() {
+        _progress = [
+          for (final p in _progress)
+            p >= 100 ? 0 : math.min(100, p + 5 + _rng.nextInt(12)),
+        ];
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                tile.color.withValues(alpha: 0.85),
-                tile.color.withValues(alpha: 0.45),
-              ],
-            ),
-            border: Border.all(color: tile.color, width: 1.2),
-            boxShadow: bmGlow(tile.color, blur: 16, opacity: 0.35),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(tile.icon, color: Colors.white, size: 26),
-              const SizedBox(height: 8),
-              Text(
-                tile.label,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                style: BmText.label(9, color: Colors.white, spacing: 0.6),
+    return Container(
+      height: 230,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border:
+            Border.all(color: BmColors.gold.withValues(alpha: 0.7), width: 1.4),
+        boxShadow: bmGlow(BmColors.violet, blur: 30, opacity: 0.45),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(21),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            IgnorePointer(
+              child: RaceArena(
+                distance: 100,
+                positions: const {},
+                running: true,
+                showStandings: false,
+                racers: [
+                  for (var i = 0; i < _ids.length; i++)
+                    ArenaRacer(
+                      id: _ids[i],
+                      name: '',
+                      color: BmColors.seatColors[i],
+                      progress: _progress[i],
+                      speed: i.isEven ? SpeedStatus.fast : SpeedStatus.cruising,
+                    ),
+                ],
               ),
-            ],
-          ),
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    BmColors.deep.withValues(alpha: 0.7),
+                    Colors.transparent,
+                    BmColors.deep.withValues(alpha: 0.85),
+                  ],
+                  stops: const [0, 0.45, 1],
+                ),
+              ),
+            ),
+            Positioned(
+              left: 16,
+              top: 14,
+              right: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const BmChip(
+                      text: 'Featured', color: BmColors.gold, filled: true),
+                  const SizedBox(height: 6),
+                  Text('TURBO TRIVIA RACE',
+                      style: BmText.display(26).copyWith(letterSpacing: 1.5)),
+                  Text('6 lanes · answer fast · reach the finish',
+                      style: BmText.body(11.5, color: const Color(0xFFD5DAF5))),
+                ],
+              ),
+            ),
+            Positioned(
+              left: 14,
+              right: 14,
+              bottom: 12,
+              child: BmButton(
+                key: const ValueKey('menu-race-now'),
+                label: 'RACE NOW',
+                icon: Icons.play_arrow_rounded,
+                height: 50,
+                fontSize: 16,
+                onPressed: widget.onRace,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Tile {
+  const _Tile(this.label, this.sub, this.icon, this.color, this.onTap);
+
+  final String label;
+  final String sub;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+}
+
+class _TileCard extends StatefulWidget {
+  const _TileCard({required this.tile, this.tall = false});
+
+  final _Tile tile;
+  final bool tall;
+
+  @override
+  State<_TileCard> createState() => _TileCardState();
+}
+
+class _TileCardState extends State<_TileCard> {
+  bool _down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.tile;
+    final icon = Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(colors: [
+          t.color,
+          Color.lerp(t.color, Colors.black, 0.35)!,
+        ]),
+        boxShadow: bmGlow(t.color, blur: 12, opacity: 0.55),
+      ),
+      child: Icon(t.icon, color: Colors.white, size: 20),
+    );
+    final text = Column(
+      crossAxisAlignment:
+          widget.tall ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(t.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: BmText.display(13.5)),
+        Text(t.sub,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: BmText.body(9.5, color: BmColors.muted)),
+      ],
+    );
+    return GestureDetector(
+      key: ValueKey('tile-${t.label}'),
+      onTapDown: (_) => setState(() => _down = true),
+      onTapCancel: () => setState(() => _down = false),
+      onTapUp: (_) => setState(() => _down = false),
+      onTap: t.onTap,
+      child: AnimatedScale(
+        scale: _down ? 0.95 : 1,
+        duration: const Duration(milliseconds: 100),
+        child: BmPanel(
+          color: t.color,
+          padding: EdgeInsets.symmetric(
+              horizontal: 10, vertical: widget.tall ? 14 : 8),
+          child: widget.tall
+              ? Column(children: [icon, const SizedBox(height: 8), text])
+              : Row(children: [
+                  icon,
+                  const SizedBox(width: 10),
+                  Expanded(child: text),
+                ]),
         ),
       ),
     );

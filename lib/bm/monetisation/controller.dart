@@ -163,8 +163,8 @@ class MonetisationController extends ChangeNotifier {
     required this.account,
     AdRewardPolicy policy = const AdRewardPolicy(),
     DateTime Function()? clock,
-  }) : _policy = policy.sanitized(),
-       _clock = clock ?? DateTime.now;
+  })  : _policy = policy.sanitized(),
+        _clock = clock ?? DateTime.now;
 
   final StoreGateway store;
   final MonetisationBackend backend;
@@ -271,8 +271,8 @@ class MonetisationController extends ChangeNotifier {
       return _lastPurchase!;
     }
 
-    _setPurchase(const PurchaseResult(
-        state: PurchaseState.purchasing, productId: null));
+    _setPurchase(
+        const PurchaseResult(state: PurchaseState.purchasing, productId: null));
     final result = await store.purchase(productId);
 
     if (result.state == PurchaseState.success) {
@@ -285,8 +285,9 @@ class MonetisationController extends ChangeNotifier {
         revoked: false,
       );
       if (!sync.accepted) {
-        final failure = PurchaseResult.failure(
-            sync.message.isEmpty ? 'The purchase could not be recorded.' : sync.message);
+        final failure = PurchaseResult.failure(sync.message.isEmpty
+            ? 'The purchase could not be recorded.'
+            : sync.message);
         _setPurchase(failure);
         return failure;
       }
@@ -364,9 +365,7 @@ class MonetisationController extends ChangeNotifier {
 
   String? blockReasonFor(ShopItem item) => purchaseBlockReason(
         item: item,
-        product: item.isBundle
-            ? productFor(item.bundleProductIds.first)
-            : null,
+        product: item.isBundle ? productFor(item.bundleProductIds.first) : null,
         entitlement: _entitlement,
         now: _clock(),
       );

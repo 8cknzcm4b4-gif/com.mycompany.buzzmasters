@@ -173,7 +173,8 @@ class FakeBackend implements MonetisationBackend {
       _inv(accountId);
 
   @override
-  Future<WalletLedger> fetchWallet(String accountId) async => _wallet(accountId);
+  Future<WalletLedger> fetchWallet(String accountId) async =>
+      _wallet(accountId);
 
   @override
   Future<PurchaseSyncResult> recordPurchase({
@@ -190,7 +191,8 @@ class FakeBackend implements MonetisationBackend {
       );
     }
     final key = '$accountId:$transactionId';
-    final duplicate = creditedEvents.putIfAbsent('purchases', () => {}).contains(key);
+    final duplicate =
+        creditedEvents.putIfAbsent('purchases', () => {}).contains(key);
     if (!duplicate) creditedEvents['purchases']!.add(key);
 
     if (revoked) {
@@ -201,11 +203,11 @@ class FakeBackend implements MonetisationBackend {
     final inventory = grantItems(_inv(accountId), granted);
     inventoryByAccount[accountId] = inventory;
     historyByAccount.putIfAbsent(accountId, () => []).add(PurchaseRecord(
-      transactionId: transactionId,
-      productId: productId,
-      purchasedAt: DateTime.now(),
-      priceString: priceString,
-    ));
+          transactionId: transactionId,
+          productId: productId,
+          purchasedAt: DateTime.now(),
+          priceString: priceString,
+        ));
     return PurchaseSyncResult(
       accepted: true,
       grantedItemIds: granted,

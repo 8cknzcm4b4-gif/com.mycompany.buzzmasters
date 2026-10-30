@@ -22,7 +22,8 @@ void main() {
     expect(find.text('RACE!'), findsOneWidget);
   });
 
-  testWidgets('elimination flash animates its lane and settles', (tester) async {
+  testWidgets('elimination flash animates its lane and settles',
+      (tester) async {
     await tester.pumpWidget(
       _wrap(
         const EliminationFlash(

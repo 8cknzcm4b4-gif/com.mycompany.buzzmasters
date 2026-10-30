@@ -24,15 +24,18 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{
       BmAudioSettings.soundKey: false,
       BmAudioSettings.hapticsKey: true,
+      BmAudioSettings.musicKey: false,
     });
     BmAudioSettings.resetForTests();
 
     await _showSettings(tester);
 
     final switches = tester.widgetList<Switch>(find.byType(Switch)).toList();
-    expect(switches, hasLength(2));
+    // Sound, music, haptics.
+    expect(switches, hasLength(3));
     expect(switches[0].value, isFalse);
-    expect(switches[1].value, isTrue);
+    expect(switches[1].value, isFalse);
+    expect(switches[2].value, isTrue);
   });
 
   testWidgets('toggling a switch updates and persists the preference',
@@ -61,5 +64,21 @@ void main() {
 
     expect(BmAudioSettings.hapticsEnabled, isFalse);
     expect(BmAudioSettings.soundEnabled, isTrue);
+  });
+
+  testWidgets('music toggle saves and leaves the other switches alone',
+      (tester) async {
+    await _showSettings(tester);
+
+    await tester.tap(find.byType(Switch).at(1));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 60));
+    }
+
+    expect(BmAudioSettings.musicEnabled, isFalse);
+    expect(BmAudioSettings.soundEnabled, isTrue);
+    expect(BmAudioSettings.hapticsEnabled, isTrue);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool(BmAudioSettings.musicKey), isFalse);
   });
 }

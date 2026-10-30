@@ -7,6 +7,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'gateways.dart';
@@ -22,8 +23,9 @@ class AdMobRewardedAds implements AdsGateway {
   RewardedAd? _pending;
   String _lastEventId = '';
 
+  /// AdMob has no web SDK, so web builds report adverts as unavailable.
   @override
-  bool get isConfigured => rewardedAdUnitId.trim().isNotEmpty;
+  bool get isConfigured => !kIsWeb && rewardedAdUnitId.trim().isNotEmpty;
 
   @override
   bool get isRewardedReady => _pending != null;

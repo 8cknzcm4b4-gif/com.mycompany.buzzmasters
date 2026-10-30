@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 
 import 'design/bm_theme.dart';
+import 'race/race_practice_screen.dart';
+import 'race/turbo_race_lobby_screen.dart';
 import 'screens/gameplay_screen.dart';
+import 'screens/leaderboard_screen.dart';
 import 'screens/main_menu_screen.dart';
 import 'screens/matchmaking_screen.dart';
+import 'screens/splash_screen.dart';
 import 'screens/welcome_screen.dart';
 
-/// Buzz Masters app shell. The imported FlutterFlow pages remain on disk but
-/// are no longer routed; this shell is the reference-matched presentation.
+/// Buzz Masters app shell — the Neon Turbo Quiz Arena build.
+///
+/// This is the app `main()` runs. The FlutterFlow pages in `lib/pages/` are
+/// not routed from here.
 class BuzzMastersApp extends StatelessWidget {
   const BuzzMastersApp({super.key});
 
@@ -25,22 +31,29 @@ class BuzzMastersApp extends StatelessWidget {
           secondary: BmColors.cyan,
           surface: BmColors.midnight,
         ),
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          },
+        ),
       ),
       home: _home(),
     );
   }
 
-  /// Optional QA / deep-link entry point: `?screen=menu|lobby|game`.
+  /// Optional QA / deep-link entry point:
+  /// `?screen=welcome|menu|lobby|race|ranks|classic|game`.
   Widget _home() {
-    switch (Uri.base.queryParameters['screen']) {
-      case 'menu':
-        return const BmMainMenuScreen();
-      case 'lobby':
-        return const BmMatchmakingScreen();
-      case 'game':
-        return const BmGameplayScreen();
-      default:
-        return const BmWelcomeScreen();
-    }
+    return switch (Uri.base.queryParameters['screen']) {
+      'welcome' => const BmWelcomeScreen(),
+      'menu' => const BmMainMenuScreen(),
+      'lobby' => const TurboRaceLobbyScreen(),
+      'race' => const RacePracticeScreen(),
+      'ranks' => const LeaderboardScreen(),
+      'classic' => const BmMatchmakingScreen(),
+      'game' => const BmGameplayScreen(),
+      _ => const BmSplashScreen(next: BmWelcomeScreen()),
+    };
   }
 }

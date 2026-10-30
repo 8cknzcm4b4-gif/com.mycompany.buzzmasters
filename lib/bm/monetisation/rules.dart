@@ -9,7 +9,8 @@ library;
 import 'models.dart';
 
 /// UTC calendar day as `yyyymmdd`, the unit every daily cap is counted in.
-int utcDayOf(DateTime moment) => moment.toUtc().year * 10000 +
+int utcDayOf(DateTime moment) =>
+    moment.toUtc().year * 10000 +
     moment.toUtc().month * 100 +
     moment.toUtc().day;
 
@@ -93,7 +94,8 @@ WalletLedger applyWalletEntry(WalletLedger ledger, WalletEntry entry) {
 
 /// Sum of ad-reward credits already recorded for a UTC day.
 int adRewardsUsedOn(WalletLedger ledger, int utcDay) => ledger.entries
-    .where((e) => e.reason == WalletReason.adReward && e.occurredAtDay == utcDay)
+    .where(
+        (e) => e.reason == WalletReason.adReward && e.occurredAtDay == utcDay)
     .length;
 
 /// Ad event ids already credited for a UTC day.
@@ -111,7 +113,8 @@ Set<String> adEventIdsOn(WalletLedger ledger, int utcDay) => {
 
 /// Grants items to an inventory. Idempotent: owning an item twice is
 /// impossible, so a replayed purchase confirmation cannot duplicate stock.
-InventorySnapshot grantItems(InventorySnapshot inventory, Iterable<String> ids) {
+InventorySnapshot grantItems(
+    InventorySnapshot inventory, Iterable<String> ids) {
   final owned = {...inventory.ownedItemIds};
   var added = false;
   for (final id in ids) {
@@ -134,7 +137,8 @@ InventorySnapshot equipItem(
 }
 
 /// Unequips a slot.
-InventorySnapshot unequipItem(InventorySnapshot inventory, ShopCategory category) {
+InventorySnapshot unequipItem(
+    InventorySnapshot inventory, ShopCategory category) {
   final equipped = {...inventory.equipped}..remove(category);
   return inventory.copyWith(equipped: equipped);
 }
@@ -257,8 +261,10 @@ MoneyStream netOf({
     return const MoneyStream.notConnected();
   }
   return MoneyStream(
-    amountPence:
-        gross.amountPence! - fees.amountPence! - refunds.amountPence! - taxEstimate.amountPence!,
+    amountPence: gross.amountPence! -
+        fees.amountPence! -
+        refunds.amountPence! -
+        taxEstimate.amountPence!,
   );
 }
 

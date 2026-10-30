@@ -26,6 +26,7 @@ class _VipHeader extends StatelessWidget {
     return Row(
       children: [
         IconButton(
+          tooltip: 'Back',
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
         ),
@@ -70,8 +71,8 @@ class _VipMembershipScreenState extends State<VipMembershipScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: BmColors.midnight,
-        title: Text('Start VIP?',
-            style: BmText.title(15, color: BmColors.gold)),
+        title:
+            Text('Start VIP?', style: BmText.title(15, color: BmColors.gold)),
         content: Text(
           '${product.title} — ${product.priceString}\n\n'
           'Billed by your app store. Cancel any time.',
@@ -106,8 +107,7 @@ class _VipMembershipScreenState extends State<VipMembershipScreen> {
             children: [
               const _VipHeader(title: 'BUZZ MASTERS VIP'),
               const SizedBox(height: 4),
-              Text('Optional. Never required to race.',
-                  style: BmText.body(12)),
+              Text('Optional. Never required to race.', style: BmText.body(12)),
               const SizedBox(height: 14),
               BmStatusBanner(controller: controller),
               Expanded(
@@ -128,13 +128,13 @@ class _VipMembershipScreenState extends State<VipMembershipScreen> {
                                 children: [
                                   Text(
                                     active ? 'YOU ARE A VIP' : 'NOT A MEMBER',
-                                    style: BmText.title(15,
-                                        color: BmColors.gold),
+                                    style:
+                                        BmText.title(15, color: BmColors.gold),
                                   ),
                                   Text(
                                     controller.entitlement.statusLabel,
-                                    style: BmText.body(11,
-                                        color: BmColors.muted),
+                                    style:
+                                        BmText.body(11, color: BmColors.muted),
                                   ),
                                 ],
                               ),
@@ -186,9 +186,10 @@ class _VipMembershipScreenState extends State<VipMembershipScreen> {
                       : 'BECOME A VIP',
                   style: BmButtonStyle.gold,
                   icon: Icons.workspace_premium_rounded,
-                  onPressed: controller.purchaseState == PurchaseState.purchasing
-                      ? null
-                      : () => _buy(controller),
+                  onPressed:
+                      controller.purchaseState == PurchaseState.purchasing
+                          ? null
+                          : () => _buy(controller),
                 ),
               const SizedBox(height: 8),
               Row(
@@ -266,16 +267,13 @@ class _PlanCard extends StatelessWidget {
               color: selected ? BmColors.gold : BmColors.panelEdge,
               width: selected ? 2 : 1.2,
             ),
-            boxShadow: selected
-                ? bmGlow(BmColors.gold, blur: 18, opacity: 0.4)
-                : null,
+            boxShadow:
+                selected ? bmGlow(BmColors.gold, blur: 18, opacity: 0.4) : null,
           ),
           child: Row(
             children: [
               Icon(
-                selected
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_off,
+                selected ? Icons.radio_button_checked : Icons.radio_button_off,
                 color: selected ? BmColors.gold : BmColors.muted,
                 size: 20,
               ),
@@ -495,14 +493,12 @@ class PurchaseHistoryScreen extends StatelessWidget {
                           controller.store.isConfigured
                               ? 'No purchases yet.'
                               : 'The store is not connected in this build.',
-                          style:
-                              BmText.body(13, color: BmColors.muted),
+                          style: BmText.body(13, color: BmColors.muted),
                         ),
                       )
                     : ListView.separated(
                         itemCount: records.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 8),
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final record = records[index];
                           return BmPanel(

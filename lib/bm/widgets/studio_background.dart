@@ -4,21 +4,27 @@ import 'package:flutter/material.dart';
 
 import '../design/bm_theme.dart';
 
-/// Painted 3D quiz-show studio: back-lit cyclorama, lighting rig, audience and
-/// a reflective stage floor. Drawn with a CustomPainter so it stays crisp at
-/// any size and needs no image assets.
+/// Painted neon quiz arena: ultraviolet stadium glow, a gold lighting halo,
+/// twinkling crowd tiers, sweeping spotlights and a glossy perspective runway.
+/// Drawn with a CustomPainter so it stays crisp at any size and needs no
+/// image assets.
 class StudioBackground extends StatefulWidget {
   const StudioBackground({
     super.key,
     this.showAudience = true,
     this.showFloor = true,
     this.animated = true,
+    this.intensity = 0.5,
     this.child,
   });
 
   final bool showAudience;
   final bool showFloor;
   final bool animated;
+
+  /// 0 to 1: how lit the arena is. Races raise it as the leader nears the
+  /// finish, so the whole stadium builds with the race.
+  final double intensity;
   final Widget? child;
 
   @override
@@ -34,7 +40,7 @@ class _StudioBackgroundState extends State<StudioBackground>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 8),
+      duration: const Duration(seconds: 10),
     );
     if (widget.animated) _controller.repeat();
   }
@@ -50,159 +56,198 @@ class _StudioBackgroundState extends State<StudioBackground>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) => CustomPaint(
-        painter: _StudioPainter(
+        painter: ArenaPainter(
           phase: _controller.value,
           showAudience: widget.showAudience,
           showFloor: widget.showFloor,
+          intensity: widget.intensity,
         ),
         child: child,
       ),
-      child: widget.child,
+      child: RepaintBoundary(child: widget.child),
     );
   }
 }
 
-class _StudioPainter extends CustomPainter {
-  _StudioPainter({
+class ArenaPainter extends CustomPainter {
+  ArenaPainter({
     required this.phase,
     required this.showAudience,
     required this.showFloor,
+    this.intensity = 0.5,
   });
 
   final double phase;
   final bool showAudience;
   final bool showFloor;
+  final double intensity;
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
-    final full = Rect.fromLTWH(0, 0, w, h);
+    final full = Offset.zero & size;
+    final lift = 0.7 + intensity * 0.6;
 
-    // Deep studio backdrop.
     canvas.drawRect(
       full,
       Paint()
         ..shader = const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF2E1668), BmColors.midnight, BmColors.deep],
-          stops: [0.0, 0.55, 1.0],
+          colors: [Color(0xFF0E0838), BmColors.midnight, BmColors.deep],
+          stops: [0.0, 0.5, 1.0],
         ).createShader(full),
     );
 
-    // Ambient colour wash.
-    _glow(canvas, Offset(w * 0.5, h * 0.40), w * 0.85,
-        BmColors.violet.withValues(alpha: 0.45));
-    _glow(canvas, Offset(w * 0.5, h * 0.55), w * 0.40,
-        BmColors.pink.withValues(alpha: 0.18));
-    _glow(canvas, Offset(w * 0.08, h * 0.30), w * 0.45,
-        BmColors.cyan.withValues(alpha: 0.16));
-    _glow(canvas, Offset(w * 0.92, h * 0.30), w * 0.45,
-        BmColors.pink.withValues(alpha: 0.18));
+    _glow(canvas, Offset(w * 0.5, h * 0.22), w * 0.95,
+        BmColors.violet.withValues(alpha: 0.38 * lift));
+    _glow(canvas, Offset(w * 0.5, h * 0.18), w * 0.42,
+        BmColors.purple.withValues(alpha: 0.22 * lift));
+    _glow(canvas, Offset(-w * 0.05, h * 0.42), w * 0.6,
+        BmColors.cyan.withValues(alpha: 0.13 * lift));
+    _glow(canvas, Offset(w * 1.05, h * 0.42), w * 0.6,
+        BmColors.pink.withValues(alpha: 0.12 * lift));
 
-    // Vertical LED strips on the cyclorama.
-    final strip = Paint()..strokeCap = StrokeCap.round;
-    for (var i = 0; i < 14; i++) {
-      final x = w * (i + 0.5) / 14;
-      final pulse = 0.5 + 0.5 * math.sin(phase * math.pi * 2 + i * 0.7);
-      strip
-        ..color = (i.isEven ? BmColors.violet : BmColors.cyan)
-            .withValues(alpha: 0.10 + pulse * 0.24)
-        ..strokeWidth = 3;
-      canvas.drawLine(Offset(x, h * 0.06), Offset(x, h * 0.52), strip);
-    }
+    _halo(canvas, w, h);
+    _beams(canvas, w, h);
+    if (showAudience) _crowd(canvas, w, h);
+    if (showFloor) _floor(canvas, w, h);
 
-    // Overhead lighting rig.
-    final rig = Rect.fromLTWH(0, 0, w, h * 0.10);
+    // Vignette keeps the eye in the centre and the edges calm.
     canvas.drawRect(
-      rig,
+      full,
       Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Colors.black.withValues(alpha: 0.55), Colors.transparent],
-        ).createShader(rig),
+        ..shader = RadialGradient(
+          radius: 1.05,
+          colors: [Colors.transparent, Colors.black.withValues(alpha: 0.55)],
+          stops: const [0.6, 1.0],
+        ).createShader(full),
     );
+  }
 
-    // Moving spotlight beams.
-    for (var i = 0; i < 6; i++) {
-      final sway = math.sin(phase * math.pi * 2 + i * 1.3) * w * 0.03;
-      final originX = w * (i + 0.5) / 6;
+  /// The suspended gold lighting ring above the arena.
+  void _halo(Canvas canvas, double w, double h) {
+    final rect = Rect.fromCenter(
+      center: Offset(w * 0.5, h * 0.035),
+      width: w * 1.25,
+      height: h * 0.11,
+    );
+    canvas.drawOval(
+      rect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 6
+        ..color = BmColors.gold.withValues(alpha: 0.10)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+    );
+    canvas.drawOval(
+      rect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4
+        ..color = BmColors.gold.withValues(alpha: 0.45),
+    );
+    for (var i = 0; i < 22; i++) {
+      final a = math.pi * (i + 0.5) / 22;
+      final p = Offset(
+        rect.center.dx - math.cos(a) * rect.width / 2,
+        rect.center.dy + math.sin(a) * rect.height / 2,
+      );
+      final pulse = 0.5 + 0.5 * math.sin(phase * math.pi * 4 + i * 0.9);
+      canvas.drawCircle(
+        p,
+        2.2,
+        Paint()..color = Colors.white.withValues(alpha: 0.35 + 0.5 * pulse),
+      );
+      canvas.drawCircle(
+        p,
+        7,
+        Paint()..color = BmColors.gold.withValues(alpha: 0.10 * pulse),
+      );
+    }
+  }
+
+  void _beams(Canvas canvas, double w, double h) {
+    for (var i = 0; i < 5; i++) {
+      final sway = math.sin(phase * math.pi * 2 + i * 1.7) * w * 0.10;
+      final originX = w * (0.1 + i * 0.2);
+      final spread = w * 0.09;
       final beam = Path()
-        ..moveTo(originX - 6, 0)
-        ..lineTo(originX + 6, 0)
-        ..lineTo(originX + sway + w * 0.13, h * 0.75)
-        ..lineTo(originX + sway - w * 0.13, h * 0.75)
+        ..moveTo(originX - 3, h * 0.03)
+        ..lineTo(originX + 3, h * 0.03)
+        ..lineTo(originX + sway + spread, h * 0.62)
+        ..lineTo(originX + sway - spread, h * 0.62)
         ..close();
-      final color = i.isEven
-          ? BmColors.gold.withValues(alpha: 0.10)
-          : BmColors.cyan.withValues(alpha: 0.08);
+      final color = switch (i % 3) {
+        0 => BmColors.cyan,
+        1 => BmColors.purple,
+        _ => Colors.white,
+      };
       canvas.drawPath(
         beam,
         Paint()
           ..shader = LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [color, Colors.transparent],
-          ).createShader(Rect.fromLTWH(0, 0, w, h * 0.75)),
+            colors: [
+              color.withValues(alpha: 0.13 + intensity * 0.08),
+              color.withValues(alpha: 0.0),
+            ],
+          ).createShader(Rect.fromLTWH(0, 0, w, h * 0.62)),
       );
     }
-
-    // Fixture bulbs along the rig.
-    for (var i = 0; i < 18; i++) {
-      final x = w * (i + 0.5) / 18;
-      final pulse = 0.4 + 0.6 * (0.5 + 0.5 * math.sin(phase * math.pi * 2 + i));
-      canvas.drawCircle(
-        Offset(x, h * 0.035),
-        5.5,
-        Paint()..color = BmColors.gold.withValues(alpha: 0.25 + pulse * 0.45),
-      );
-      canvas.drawCircle(
-        Offset(x, h * 0.035),
-        11,
-        Paint()..color = BmColors.gold.withValues(alpha: 0.06 * pulse),
-      );
-    }
-
-    if (showAudience) _audience(canvas, w, h);
-
-    if (showFloor) _floor(canvas, w, h);
   }
 
-  void _audience(Canvas canvas, double w, double h) {
-    final top = h * 0.34;
-    for (var row = 0; row < 4; row++) {
-      final y = top + row * h * 0.05;
-      for (var i = 0; i < 26; i++) {
-        final x = w * (i + (row.isEven ? 0.5 : 1.0)) / 26;
-        final d = 0.34 - row * 0.055;
+  /// Curved stadium tiers dotted with phone lights and wristbands.
+  void _crowd(Canvas canvas, double w, double h) {
+    final rng = math.Random(11);
+    for (var tier = 0; tier < 4; tier++) {
+      final cy = h * (0.20 + tier * 0.045);
+      final sag = h * (0.035 + tier * 0.01);
+      final count = 34 + tier * 6;
+      for (var i = 0; i < count; i++) {
+        final t = (i + rng.nextDouble() * 0.6) / count;
+        final x = w * (t * 1.2 - 0.1);
+        final y = cy + sag * (1 - math.pow((t - 0.5) * 2, 2).toDouble());
+        final seed = rng.nextDouble();
+        final twinkle =
+            0.5 + 0.5 * math.sin(phase * math.pi * 2 * 3 + seed * 20);
+        final color = switch ((seed * 5).floor()) {
+          0 => BmColors.cyan,
+          1 => BmColors.pink,
+          2 => BmColors.gold,
+          _ => BmColors.purple,
+        };
         canvas.drawCircle(
           Offset(x, y),
-          8.0 - row * 0.8,
-          Paint()..color = BmColors.violet.withValues(alpha: d * 0.55),
-        );
-        canvas.drawCircle(
-          Offset(x, y),
-          7.0 - row * 0.8,
-          Paint()..color = const Color(0xFF07040F).withValues(alpha: d),
-        );
-        canvas.drawCircle(
-          Offset(x, y - 12),
-          4.2,
-          Paint()..color = BmColors.cyan.withValues(alpha: d * 0.4),
-        );
-        canvas.drawCircle(
-          Offset(x, y - 12),
-          3.6,
-          Paint()..color = const Color(0xFF07040F).withValues(alpha: d),
+          1.1 + tier * 0.25,
+          Paint()
+            ..color = color.withValues(
+              alpha: (0.25 + 0.55 * twinkle) * (0.6 + intensity * 0.5),
+            ),
         );
       }
+      // Tier rail.
+      final rail = Path()
+        ..moveTo(-w * 0.1, cy + 8)
+        ..quadraticBezierTo(w * 0.5, cy + sag * 2 + 8, w * 1.1, cy + 8);
+      canvas.drawPath(
+        rail,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = (tier.isEven ? BmColors.violet : BmColors.cyan)
+              .withValues(alpha: 0.25),
+      );
     }
   }
 
+  /// Glossy perspective runway with neon edge rails and gold chevrons that
+  /// stream towards the viewer.
   void _floor(Canvas canvas, double w, double h) {
-    final horizon = h * 0.68;
+    final horizon = h * 0.60;
+    final vp = Offset(w * 0.5, horizon);
     final floorRect = Rect.fromLTWH(0, horizon, w, h - horizon);
     canvas.drawRect(
       floorRect,
@@ -210,66 +255,65 @@ class _StudioPainter extends CustomPainter {
         ..shader = const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF14102B), Color(0xFF0A0818)],
+          colors: [Color(0xFF100B34), Color(0xFF050720)],
         ).createShader(floorRect),
     );
+    _glow(canvas, vp, w * 0.7, BmColors.violet.withValues(alpha: 0.30));
+    _glow(canvas, vp, w * 0.3, BmColors.cyan.withValues(alpha: 0.16));
 
-    // Glossy reflection band at the horizon.
-    _glow(canvas, Offset(w * 0.5, horizon), w * 0.55,
-        BmColors.violet.withValues(alpha: 0.35));
-    _glow(canvas, Offset(w * 0.5, horizon), w * 0.30,
-        BmColors.cyan.withValues(alpha: 0.18));
-
-    // Golden emblem pool at centre stage.
-    final emblem = Path()
-      ..moveTo(w * 0.5 - w * 0.10, h)
-      ..lineTo(w * 0.5 + w * 0.10, h)
-      ..lineTo(w * 0.5 + w * 0.26, horizon + h * 0.02)
-      ..lineTo(w * 0.5 - w * 0.26, horizon + h * 0.02)
-      ..close();
-    canvas.drawPath(
-      emblem,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            BmColors.gold.withValues(alpha: 0.0),
-            BmColors.gold.withValues(alpha: 0.16),
-          ],
-        ).createShader(Rect.fromLTWH(0, horizon, w, h - horizon)),
-    );
-
-    // Concentric stage rings, foreshortened into ellipses.
-    final ring = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-    for (var i = 0; i < 5; i++) {
-      final t = i / 4;
-      final rect = Rect.fromCenter(
-        center: Offset(w * 0.5, h * (0.86 + i * 0.03)),
-        width: w * (0.30 + t * 0.85),
-        height: h * (0.05 + t * 0.10),
-      );
-      ring.color = (i.isEven ? BmColors.gold : BmColors.violet)
-          .withOpacity(0.28 - i * 0.04);
-      canvas.drawOval(rect, ring);
+    // Converging grid lines.
+    final grid = Paint()..strokeWidth = 1;
+    for (var i = -8; i <= 8; i++) {
+      final x = w * 0.5 + i * w * 0.16;
+      grid.color =
+          (i.isEven ? BmColors.violet : BmColors.cyan).withValues(alpha: 0.16);
+      canvas.drawLine(vp, Offset(x + i * w * 0.25, h), grid);
+    }
+    // Horizontal grid lines streaming towards the viewer.
+    for (var k = 0; k < 9; k++) {
+      final t = ((k + phase * 3) % 9) / 9;
+      final y = horizon + (h - horizon) * t * t;
+      grid.color = BmColors.violet.withValues(alpha: 0.05 + 0.20 * t);
+      canvas.drawLine(Offset(0, y), Offset(w, y), grid);
     }
 
-    // Reflective sheen.
-    final sheen = Rect.fromLTWH(0, horizon, w, h * 0.10);
-    canvas.drawRect(
-      sheen,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            BmColors.cyan.withValues(alpha: 0.10),
-            Colors.transparent,
-          ],
-        ).createShader(sheen),
-    );
+    // Runway edge rails.
+    final rail = Paint()
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round;
+    for (final side in [-1.0, 1.0]) {
+      final base = Offset(w * 0.5 + side * w * 0.30, h);
+      rail
+        ..color = BmColors.gold.withValues(alpha: 0.12)
+        ..strokeWidth = 8
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+      canvas.drawLine(vp, base, rail);
+      rail
+        ..color = BmColors.gold.withValues(alpha: 0.55)
+        ..strokeWidth = 1.6
+        ..maskFilter = null;
+      canvas.drawLine(vp, base, rail);
+    }
+
+    // Chevrons.
+    for (var k = 0; k < 4; k++) {
+      final t = ((k + phase * 2) % 4) / 4;
+      final y = horizon + (h - horizon) * t * t;
+      final half = w * 0.30 * t * 0.55;
+      final depth = (h - horizon) * 0.05 * t;
+      final chevron = Path()
+        ..moveTo(w * 0.5 - half, y + depth)
+        ..lineTo(w * 0.5, y)
+        ..lineTo(w * 0.5 + half, y + depth);
+      canvas.drawPath(
+        chevron,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1 + 4 * t
+          ..strokeCap = StrokeCap.round
+          ..color = BmColors.cyan.withValues(alpha: 0.10 + 0.35 * t),
+      );
+    }
   }
 
   void _glow(Canvas canvas, Offset center, double radius, Color color) {
@@ -284,13 +328,14 @@ class _StudioPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _StudioPainter old) =>
+  bool shouldRepaint(covariant ArenaPainter old) =>
       old.phase != phase ||
       old.showAudience != showAudience ||
-      old.showFloor != showFloor;
+      old.showFloor != showFloor ||
+      old.intensity != intensity;
 }
 
-/// Convenience scaffold: full-bleed animated studio with safe-area content.
+/// Convenience scaffold: full-bleed animated arena with safe-area content.
 class StudioScaffold extends StatelessWidget {
   const StudioScaffold({
     super.key,
@@ -299,6 +344,7 @@ class StudioScaffold extends StatelessWidget {
     this.showFloor = true,
     this.padding = const EdgeInsets.all(20),
     this.safeArea = true,
+    this.intensity = 0.5,
   });
 
   final Widget child;
@@ -306,6 +352,7 @@ class StudioScaffold extends StatelessWidget {
   final bool showFloor;
   final EdgeInsets padding;
   final bool safeArea;
+  final double intensity;
 
   @override
   Widget build(BuildContext context) {
@@ -314,6 +361,7 @@ class StudioScaffold extends StatelessWidget {
       body: StudioBackground(
         showAudience: showAudience,
         showFloor: showFloor,
+        intensity: intensity,
         child: SafeArea(
           top: safeArea,
           bottom: safeArea,

@@ -1,181 +1,383 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../design/bm_theme.dart';
+import '../online/join_game_screen.dart';
+import '../online/online_race_service.dart';
+import '../race/race_practice_screen.dart';
+import '../settings/bm_music.dart';
 import '../widgets/bm_button.dart';
+import '../widgets/bm_panel.dart';
 import '../widgets/studio_background.dart';
+import 'how_to_play_screen.dart';
+import 'leaderboard_screen.dart';
 import 'main_menu_screen.dart';
-import 'matchmaking_screen.dart';
+import 'settings_screen.dart';
 
-/// Screen 2 — Welcome: logo over the animated studio with every sign-in path.
-class BmWelcomeScreen extends StatelessWidget {
+/// Fade-and-rise page transition used between the main Buzz Masters screens.
+Route<T> arenaRoute<T>(Widget screen) => PageRouteBuilder<T>(
+      transitionDuration: const Duration(milliseconds: 380),
+      reverseTransitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (_, __, ___) => screen,
+      transitionsBuilder: (_, a, __, child) {
+        final curved = CurvedAnimation(parent: a, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween(begin: const Offset(0, 0.04), end: Offset.zero)
+                .animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+
+/// Welcome: branding over the live arena, the main game actions, joining by
+/// code, resuming a genuinely joined lobby, and account sign-in.
+class BmWelcomeScreen extends StatefulWidget {
   const BmWelcomeScreen({super.key});
 
-  void _openMenu(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const BmMainMenuScreen()),
-    );
+  @override
+  State<BmWelcomeScreen> createState() => _BmWelcomeScreenState();
+}
+
+class _BmWelcomeScreenState extends State<BmWelcomeScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _glow = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 3),
+  )..repeat(reverse: true);
+
+  late Future<LobbySession?> _resumable = OnlineRace.lastResumable();
+  bool _resuming = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(BmMusic.start());
   }
 
-  void _openMatchmaking(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const BmMatchmakingScreen()),
-    );
+  @override
+  void dispose() {
+    _glow.dispose();
+    super.dispose();
+  }
+
+  void _refreshResumable() {
+    final next = OnlineRace.lastResumable();
+    setState(() {
+      _resumable = next;
+    });
+  }
+
+  Future<void> _open(Widget screen) async {
+    unawaited(BmMusic.start());
+    await Navigator.of(context).push(arenaRoute<void>(screen));
+    if (mounted) _refreshResumable();
+  }
+
+  Future<void> _resume(LobbySession session) async {
+    setState(() => _resuming = true);
+    JoinResult result;
+    try {
+      result = await OnlineRace.service.resume(session);
+    } on Object {
+      result = const JoinResult.failed(JoinFailure.offline);
+    }
+    if (!mounted) return;
+    setState(() => _resuming = false);
+    final joined = result.session;
+    if (joined != null) {
+      await _open(OnlineLobbyScreen(session: joined));
+      return;
+    }
+    // A lobby that can no longer be resumed is dropped so the card hides.
+    if (result.failure != JoinFailure.offline) await OnlineRace.forget();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(_snack(result.failure!.message));
+    _refreshResumable();
   }
 
   @override
   Widget build(BuildContext context) {
     return StudioScaffold(
-      padding: const EdgeInsets.fromLTRB(26, 24, 26, 18),
+      padding: const EdgeInsets.fromLTRB(18, 6, 18, 12),
+      intensity: 0.7,
       child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+        builder: (context, box) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: box.maxHeight),
+            child: Column(
+              children: [
+                _topBar(),
+                const SizedBox(height: 4),
+                _brand(),
+                const SizedBox(height: 18),
+                BmButton(
+                  key: const ValueKey('welcome-play'),
+                  label: 'PLAY NOW',
+                  icon: Icons.play_arrow_rounded,
+                  height: 60,
+                  fontSize: 19,
+                  onPressed: () => _open(const BmMainMenuScreen()),
+                ),
+                const SizedBox(height: 10),
+                BmButton(
+                  label: 'PRACTICE RACE',
+                  icon: Icons.sports_score_rounded,
+                  style: BmButtonStyle.violet,
+                  height: 50,
+                  fontSize: 15,
+                  onPressed: () => _open(const RacePracticeScreen()),
+                ),
+                const SizedBox(height: 14),
+                _joinCard(),
+                FutureBuilder<LobbySession?>(
+                  future: _resumable,
+                  builder: (context, snap) {
+                    final session = snap.data;
+                    if (session == null) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: _resumeCard(session),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                _signIn(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _topBar() {
+    return Row(
+      children: [
+        BmIconButton(
+          key: const ValueKey('welcome-info'),
+          icon: Icons.info_outline_rounded,
+          tooltip: 'How to play',
+          color: BmColors.purple,
+          onPressed: () => _open(const HowToPlayScreen()),
+        ),
+        const Spacer(),
+        BmIconButton(
+          key: const ValueKey('welcome-leaderboard'),
+          icon: Icons.emoji_events_rounded,
+          tooltip: 'Leaderboard',
+          color: BmColors.gold,
+          onPressed: () => _open(const LeaderboardScreen()),
+        ),
+        const SizedBox(width: 10),
+        BmIconButton(
+          key: const ValueKey('welcome-settings'),
+          icon: Icons.settings_rounded,
+          tooltip: 'Settings',
+          onPressed: () => _open(const BmSettingsScreen()),
+        ),
+      ],
+    );
+  }
+
+  Widget _brand() {
+    return AnimatedBuilder(
+      animation: _glow,
+      builder: (context, child) => Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color:
+                  BmColors.violet.withValues(alpha: 0.25 + 0.25 * _glow.value),
+              blurRadius: 70,
+              spreadRadius: 6,
+            ),
+          ],
+        ),
+        child: child,
+      ),
+      child: Column(
+        children: [
+          Image.asset('assets/images/bm_logo.png',
+              width: 260, fit: BoxFit.contain),
+          const SizedBox(height: 6),
+          ShaderMask(
+            shaderCallback: (r) => const LinearGradient(
+              colors: [BmColors.cyan, Colors.white, BmColors.gold],
+            ).createShader(r),
+            child: Text(
+              'NEON TURBO QUIZ ARENA',
+              style: BmText.display(17).copyWith(letterSpacing: 4),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text('Six racers. One finish line. Answer fast.',
+              style: BmText.body(12, color: BmColors.muted)),
+        ],
+      ),
+    );
+  }
+
+  Widget _joinCard() {
+    return BmPanel(
+      color: BmColors.cyan,
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              gradient: BmGradients.cyan,
+              boxShadow: bmGlow(BmColors.cyan, blur: 14, opacity: 0.5),
+            ),
+            child: const Icon(Icons.groups_rounded, color: BmColors.deep),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('JOIN GAME', style: BmText.display(17)),
+                Text('Race friends with a 6-digit code',
+                    style: BmText.body(11.5, color: BmColors.muted)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          BmButton(
+            key: const ValueKey('welcome-get-started'),
+            label: 'GET STARTED',
+            style: BmButtonStyle.cyan,
+            height: 40,
+            fontSize: 12,
+            expand: false,
+            onPressed: () => _open(const JoinGameScreen()),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _resumeCard(LobbySession session) {
+    return GestureDetector(
+      key: const ValueKey('welcome-resume'),
+      onTap: _resuming ? null : () => _resume(session),
+      child: BmPanel(
+        color: BmColors.gold,
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            const Icon(Icons.history_rounded, color: BmColors.gold, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    children: [
-                      const SizedBox(height: 12),
-                      Image.asset('assets/images/bm_logo.png', width: 300),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: Image.asset(
-                          'assets/images/bm_hero.png',
-                          width: 300,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                      const SizedBox(height: 22),
-                    ],
-                  ),
-                  Column(
-                    children: [
-                      BmButton(
-                        label: 'PLAY NOW',
-                        icon: Icons.play_arrow_rounded,
-                        height: 58,
-                        fontSize: 17,
-                        onPressed: () => _openMatchmaking(context),
-                      ),
-                      const SizedBox(height: 12),
-                      BmButton(
-                        label: 'PLAY WITH FRIENDS',
-                        icon: Icons.people_alt_rounded,
-                        style: BmButtonStyle.cyan,
-                        onPressed: () => _openMatchmaking(context),
-                      ),
-                      const SizedBox(height: 18),
-                      BmButton(
-                        label: 'PLAY AS GUEST',
-                        style: BmButtonStyle.outline,
-                        onPressed: () => _openMenu(context),
-                      ),
-                      const SizedBox(height: 22),
-                      _divider(),
-                      const SizedBox(height: 16),
-                      BmButton(
-                        label: 'Sign in with Apple',
-                        icon: Icons.apple,
-                        style: BmButtonStyle.white,
-                        height: 50,
-                        fontSize: 14,
-                        onPressed: () => _signIn(context, 'Apple'),
-                      ),
-                      const SizedBox(height: 10),
-                      BmButton(
-                        label: 'Sign in with Google',
-                        icon: Icons.g_mobiledata_rounded,
-                        style: BmButtonStyle.white,
-                        height: 50,
-                        fontSize: 14,
-                        onPressed: () => _signIn(context, 'Google'),
-                      ),
-                      const SizedBox(height: 10),
-                      BmButton(
-                        label: 'Sign in with Email',
-                        icon: Icons.mail_rounded,
-                        style: BmButtonStyle.violet,
-                        height: 50,
-                        fontSize: 14,
-                        onPressed: () => _emailNotice(context),
-                      ),
-                      const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: () => _emailNotice(context),
-                        child: Text(
-                          'Create Account',
-                          style: BmText.body(13, color: BmColors.cyan)
-                              .copyWith(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _footerLink('Terms'),
-                          _dot(),
-                          _footerLink('Privacy Policy'),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                    ],
-                  ),
+                  Text('RESUME LAST SESSION',
+                      style: BmText.label(11, color: Colors.white)),
+                  Text('Race code ${session.code}',
+                      style: BmText.body(12, color: BmColors.gold)),
                 ],
               ),
             ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _divider() => Row(
-        children: [
-          Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.18))),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Text('OR', style: BmText.label(10, spacing: 2)),
-          ),
-          Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.18))),
-        ],
-      );
-
-  Widget _footerLink(String text) => Text(
-        text,
-        style: BmText.body(11, color: BmColors.muted)
-            .copyWith(decoration: TextDecoration.underline),
-      );
-
-  Widget _dot() => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Text('·', style: BmText.body(11, color: BmColors.muted)),
-      );
-
-  void _signIn(BuildContext context, String provider) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: BmColors.panel,
-        content: Text(
-          '$provider sign-in is not configured yet: no OAuth client or '
-          'Buzz Masters backend is connected.',
-          style: BmText.body(12),
+            _resuming
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: BmColors.gold),
+                  )
+                : const Icon(Icons.play_circle_fill_rounded,
+                    color: BmColors.gold, size: 30),
+          ],
         ),
       ),
     );
   }
 
-  void _emailNotice(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: BmColors.panel,
-        content: Text(
-          'Email accounts need the Buzz Masters backend (Supabase auth), '
-          'which is not connected yet.',
-          style: BmText.body(12),
+  Widget _signIn() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+                child: Divider(color: Colors.white.withValues(alpha: 0.15))),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Text('ACCOUNT', style: BmText.label(9)),
+            ),
+            Expanded(
+                child: Divider(color: Colors.white.withValues(alpha: 0.15))),
+          ],
         ),
-      ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: BmButton(
+                label: 'Apple',
+                icon: Icons.apple,
+                style: BmButtonStyle.white,
+                height: 44,
+                fontSize: 13,
+                onPressed: () => _accountNotice('Sign in with Apple'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BmButton(
+                label: 'Google',
+                icon: Icons.g_mobiledata_rounded,
+                style: BmButtonStyle.white,
+                height: 44,
+                fontSize: 13,
+                onPressed: () => _accountNotice('Sign in with Google'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BmButton(
+                label: 'Email',
+                icon: Icons.mail_rounded,
+                style: BmButtonStyle.outline,
+                height: 44,
+                fontSize: 13,
+                onPressed: () => _accountNotice('Email accounts'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Playing as a guest — progress is saved on this device.',
+          textAlign: TextAlign.center,
+          style: BmText.body(10.5, color: BmColors.muted),
+        ),
+      ],
     );
   }
+
+  void _accountNotice(String provider) {
+    ScaffoldMessenger.of(context).showSnackBar(_snack(
+      '$provider is not available yet: Buzz Masters accounts need the game '
+      'server and OAuth client IDs, which this build does not have. You can '
+      'keep playing as a guest.',
+    ));
+  }
+
+  SnackBar _snack(String text) => SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: BmColors.panel,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: BmColors.cyan.withValues(alpha: 0.5)),
+        ),
+        content: Text(text, style: BmText.body(12.5)),
+      );
 }

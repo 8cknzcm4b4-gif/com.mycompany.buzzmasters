@@ -30,6 +30,7 @@ class SponsoredTournamentsScreen extends StatelessWidget {
               Row(
                 children: [
                   IconButton(
+                    tooltip: 'Back',
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.arrow_back_rounded,
                         color: Colors.white),
@@ -83,8 +84,8 @@ class SponsoredTournamentsScreen extends StatelessWidget {
                                         borderRadius: BorderRadius.circular(6),
                                         color: BmColors.gold
                                             .withValues(alpha: 0.2),
-                                        border: Border.all(
-                                            color: BmColors.gold),
+                                        border:
+                                            Border.all(color: BmColors.gold),
                                       ),
                                       child: Text(
                                         tournament.sponsoredLabel.toUpperCase(),
@@ -103,13 +104,11 @@ class SponsoredTournamentsScreen extends StatelessWidget {
                                   ],
                                 ),
                                 const SizedBox(height: 8),
-                                Text(tournament.name,
-                                    style: BmText.title(15)),
+                                Text(tournament.name, style: BmText.title(15)),
                                 const SizedBox(height: 4),
                                 Text(
                                   'Free entry · ${tournament.participantIds.length} entered',
-                                  style:
-                                      BmText.body(11, color: BmColors.muted),
+                                  style: BmText.body(11, color: BmColors.muted),
                                 ),
                                 const SizedBox(height: 10),
                                 BmButton(
@@ -163,6 +162,7 @@ class TournamentDetailsScreen extends StatelessWidget {
               Row(
                 children: [
                   IconButton(
+                    tooltip: 'Back',
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.arrow_back_rounded,
                         color: Colors.white),
@@ -209,8 +209,8 @@ class TournamentDetailsScreen extends StatelessWidget {
                                   if (tournament.sponsor.website.isNotEmpty)
                                     Text(
                                       tournament.sponsor.website,
-                                      style: BmText.body(10,
-                                          color: BmColors.cyan),
+                                      style:
+                                          BmText.body(10, color: BmColors.cyan),
                                     ),
                                 ],
                               ),
@@ -235,8 +235,7 @@ class TournamentDetailsScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(tournament.entryRule,
-                                style: BmText.body(12)),
+                            Text(tournament.entryRule, style: BmText.body(12)),
                             const SizedBox(height: 8),
                             Text(
                               'Free entry. No cash prizes, deposits or wagers. '
@@ -276,16 +275,14 @@ class TournamentDetailsScreen extends StatelessWidget {
                           if (scores.isEmpty) {
                             return Text(
                               'Standings appear once the first round is scored.',
-                              style: BmText.body(11,
-                                  color: BmColors.muted),
+                              style: BmText.body(11, color: BmColors.muted),
                             );
                           }
                           return Column(
                             children: [
                               for (var i = 0; i < scores.length; i++)
                                 Padding(
-                                  padding:
-                                      const EdgeInsets.only(bottom: 6),
+                                  padding: const EdgeInsets.only(bottom: 6),
                                   child: Row(
                                     children: [
                                       SizedBox(
@@ -321,8 +318,8 @@ class TournamentDetailsScreen extends StatelessWidget {
                 onPressed: joined
                     ? null
                     : () async {
-                        final error = await controller
-                            .joinTournament(tournament);
+                        final error =
+                            await controller.joinTournament(tournament);
                         if (error != null && context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(error)),

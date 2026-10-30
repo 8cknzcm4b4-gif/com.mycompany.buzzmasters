@@ -18,6 +18,7 @@ class RaceConfig {
     this.countdownSeconds = 3,
     this.dangerGraceQuestions = 1,
     this.maxQuestions = 30,
+    this.dangerFreeQuestions = 0,
   });
 
   /// Progress units needed to finish.
@@ -54,7 +55,15 @@ class RaceConfig {
   /// Question cap that ends the race if no one has finished, so it cannot run
   /// forever.
   final int maxQuestions;
+
+  /// Opening questions during which the danger zone is not judged. Every
+  /// racer starts on the grid at 0, inside the zone, so without a safe start
+  /// most of the field is knocked out before the race has begun.
+  final int dangerFreeQuestions;
 }
+
+/// The Turbo Trivia Race rules the game ships with.
+const kTurboRaceConfig = RaceConfig(dangerFreeQuestions: 3);
 
 /// Phases of a race, from lobby to results.
 enum RacePhase {
@@ -224,6 +233,9 @@ class RaceModel {
 
   RacerProgress _judgeDanger(RacerProgress racer) {
     if (racer.eliminated || racer.finished) return racer;
+    if (questionsAsked < config.dangerFreeQuestions) {
+      return racer.copyWith(dangerStreak: 0);
+    }
     if (racer.progress > config.dangerZoneMax) {
       return racer.copyWith(dangerStreak: 0);
     }
@@ -252,6 +264,7 @@ class RaceModel {
   bool inDangerZone(String racerId) {
     final racer = _find(racerId);
     if (racer == null || racer.eliminated || racer.finished) return false;
+    if (questionsAsked < config.dangerFreeQuestions) return false;
     return racer.progress <= config.dangerZoneMax;
   }
 

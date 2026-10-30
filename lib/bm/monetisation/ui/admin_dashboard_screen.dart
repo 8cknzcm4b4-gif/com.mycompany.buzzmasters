@@ -32,6 +32,7 @@ class AdminMonetisationDashboardScreen extends StatelessWidget {
               Row(
                 children: [
                   IconButton(
+                    tooltip: 'Back',
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.arrow_back_rounded,
                         color: Colors.white),
@@ -45,8 +46,8 @@ class AdminMonetisationDashboardScreen extends StatelessWidget {
                   ),
                   IconButton(
                     onPressed: controller.loadAdmin,
-                    icon: const Icon(Icons.refresh_rounded,
-                        color: BmColors.cyan),
+                    icon:
+                        const Icon(Icons.refresh_rounded, color: BmColors.cyan),
                   ),
                 ],
               ),
@@ -97,9 +98,13 @@ class AdminMonetisationDashboardScreen extends StatelessWidget {
                       const SizedBox(height: 8),
                       _MoneyRow(label: 'Gross revenue', value: summary.gross),
                       _MoneyRow(
-                          label: 'Store fees', value: summary.fees, negative: true),
+                          label: 'Store fees',
+                          value: summary.fees,
+                          negative: true),
                       _MoneyRow(
-                          label: 'Refunds', value: summary.refunds, negative: true),
+                          label: 'Refunds',
+                          value: summary.refunds,
+                          negative: true),
                       _MoneyRow(
                           label: 'Tax estimate',
                           value: summary.taxEstimate,
@@ -113,8 +118,7 @@ class AdminMonetisationDashboardScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('OUTSTANDING ERRORS',
-                                style: BmText.label(10,
-                                    color: BmColors.red)),
+                                style: BmText.label(10, color: BmColors.red)),
                             const SizedBox(height: 6),
                             Text(
                               '${summary.outstandingErrors} monetisation error(s) awaiting attention.',
@@ -155,9 +159,10 @@ class _CountGrid extends StatelessWidget {
       ('ACTIVE VIP', '${summary.activeVipCount}'),
       ('CANCELLATIONS 30D', '${summary.cancellations30d}'),
       ('VERIFIED AD REWARDS', '${summary.verifiedAdRewards}'),
-      ('REFUNDS', summary.refunds.connected
-          ? summary.refunds.formatted
-          : 'Not connected'),
+      (
+        'REFUNDS',
+        summary.refunds.connected ? summary.refunds.formatted : 'Not connected'
+      ),
     ];
     return GridView.count(
       crossAxisCount: 2,
@@ -211,10 +216,13 @@ class _MoneyRow extends StatelessWidget {
             child: Text(label, style: BmText.body(12)),
           ),
           Text(
-            value.connected && negative ? '−${value.formatted}' : value.formatted,
-            style: BmText.title(13, color: value.connected
-                ? (negative ? BmColors.red : BmColors.gold)
-                : BmColors.muted),
+            value.connected && negative
+                ? '−${value.formatted}'
+                : value.formatted,
+            style: BmText.title(13,
+                color: value.connected
+                    ? (negative ? BmColors.red : BmColors.gold)
+                    : BmColors.muted),
           ),
         ],
       ),

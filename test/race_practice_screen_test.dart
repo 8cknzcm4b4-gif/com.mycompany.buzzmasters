@@ -8,7 +8,8 @@ import 'package:buzz_masters/bm/race/race_practice_screen.dart';
 import 'package:buzz_masters/bm/widgets/bm_panel.dart';
 
 void main() {
-  testWidgets('practice race counts down, takes an answer and ends with results',
+  testWidgets(
+      'practice race counts down, takes an answer and ends with results',
       (tester) async {
     await tester.pumpWidget(
       MaterialApp(home: RacePracticeScreen(random: Random(7))),
@@ -20,7 +21,9 @@ void main() {
 
     await tester.tap(find.byType(AnswerTile).first);
     await tester.pump();
-    for (var i = 0; i < 40 && find.textContaining('Answer:').evaluate().isEmpty; i++) {
+    for (var i = 0;
+        i < 40 && find.textContaining('Answer:').evaluate().isEmpty;
+        i++) {
       await tester.pump(const Duration(milliseconds: 500));
     }
     expect(find.textContaining('Answer:'), findsOneWidget);

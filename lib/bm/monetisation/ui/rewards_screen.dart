@@ -34,6 +34,7 @@ class DailyRewardsScreen extends StatelessWidget {
               Row(
                 children: [
                   IconButton(
+                    tooltip: 'Back',
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.arrow_back_rounded,
                         color: Colors.white),
@@ -110,8 +111,7 @@ class DailyRewardsScreen extends StatelessWidget {
                       if (controller.ledger.entries.isEmpty)
                         Text(
                           'No rewards yet.',
-                          style:
-                              BmText.body(12, color: BmColors.muted),
+                          style: BmText.body(12, color: BmColors.muted),
                         )
                       else
                         for (final entry in controller.ledger.entries.reversed)
@@ -144,8 +144,7 @@ class DailyRewardsScreen extends StatelessWidget {
                                 ),
                                 Text(
                                   '+${entry.delta}',
-                                  style: BmText.title(12,
-                                      color: BmColors.gold),
+                                  style: BmText.title(12, color: BmColors.gold),
                                 ),
                               ],
                             ),
@@ -192,8 +191,7 @@ class _RewardTile extends StatelessWidget {
               children: [
                 Text(title, style: BmText.title(14)),
                 const SizedBox(height: 4),
-                Text(subtitle,
-                    style: BmText.body(11, color: BmColors.muted)),
+                Text(subtitle, style: BmText.body(11, color: BmColors.muted)),
               ],
             ),
           ),
@@ -234,10 +232,9 @@ class RewardedAdPrompt extends StatelessWidget {
           AdPromptState.loading => 'Finding an advertisement.',
           AdPromptState.watching =>
             'Watch to the end to earn ${controller.policy.coinsPerReward} coins.',
-          AdPromptState.failed =>
-            controller.ads.isConfigured
-                ? 'No advertisement is available right now. Try again later.'
-                : 'Advertising is not configured in this build.',
+          AdPromptState.failed => controller.ads.isConfigured
+              ? 'No advertisement is available right now. Try again later.'
+              : 'Advertising is not configured in this build.',
         };
 
         return AlertDialog(

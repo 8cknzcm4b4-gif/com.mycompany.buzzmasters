@@ -45,7 +45,8 @@ void main() {
     expect(prefs.getBool(BmAudioSettings.hapticsKey), isFalse);
   });
 
-  testWidgets('race cues stay silent when both toggles are off', (tester) async {
+  testWidgets('race cues stay silent when both toggles are off',
+      (tester) async {
     final calls = <String>[];
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,

@@ -8,6 +8,15 @@
 - **Branch holding the work:** `main`
 - **Race code location:** `lib/bm/race/` (FlutterFlow pages live in `lib/pages/`)
 
+## Why FlutterFlow builds do not show the custom game (checked 2026-10-30)
+
+`lib/main.dart` runs `BuzzMastersApp` from `lib/bm/`; the FlutterFlow pages
+in `lib/pages/` (including the "Join Game / Resume Last Session / ROOM
+#882-104" landing screen) are not routed. A build produced *by FlutterFlow*
+compiles FlutterFlow's own project, which is not linked to this repository,
+so it shows those old pages. Build from this repository instead — see
+`docs/neon-arena-redesign.md`.
+
 ## Verified state
 
 The FlutterFlow API is reachable, but rejects calls without credentials:

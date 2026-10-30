@@ -35,6 +35,7 @@ class _BmMatchmakingScreenState extends State<BmMatchmakingScreen> {
               BmIconButton(
                 icon: Icons.close_rounded,
                 color: BmColors.pink,
+                tooltip: 'Close',
                 onPressed: () => Navigator.of(context).pop(),
               ),
               const Spacer(),

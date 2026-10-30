@@ -180,7 +180,8 @@ class UnconfiguredBackend implements MonetisationBackend {
       );
 
   @override
-  Future<List<PurchaseRecord>> purchaseHistory(String accountId) async => const [];
+  Future<List<PurchaseRecord>> purchaseHistory(String accountId) async =>
+      const [];
 
   @override
   Future<AdRewardDecision> grantAdReward({
@@ -217,7 +218,8 @@ class UnconfiguredBackend implements MonetisationBackend {
       'Backend is not configured.';
 
   @override
-  Future<List<TournamentScore>> standings(String tournamentId) async => const [];
+  Future<List<TournamentScore>> standings(String tournamentId) async =>
+      const [];
 
   @override
   Future<AdminRevenueSummary> adminSummary() async =>
@@ -233,7 +235,8 @@ class UnconfiguredStore implements StoreGateway {
   bool get isConfigured => false;
 
   @override
-  Future<List<StoreProduct>> products(List<String> productIds) async => const [];
+  Future<List<StoreProduct>> products(List<String> productIds) async =>
+      const [];
 
   @override
   Future<PurchaseResult> purchase(String productId) async =>
@@ -268,5 +271,6 @@ class UnconfiguredAds implements AdsGateway {
   bool get isRewardedReady => false;
 
   @override
-  Future<AdWatchResult> showRewarded() async => const AdWatchResult.notConfigured();
+  Future<AdWatchResult> showRewarded() async =>
+      const AdWatchResult.notConfigured();
 }

@@ -25,7 +25,8 @@ class SupabaseBackend implements MonetisationBackend {
   @override
   bool get isConfigured => _configured;
 
-  static bool credentialsPresent({required String url, required String anonKey}) =>
+  static bool credentialsPresent(
+          {required String url, required String anonKey}) =>
       url.trim().startsWith('http') && anonKey.trim().length > 20;
 
   Future<void> configure() async {
@@ -230,7 +231,8 @@ class SupabaseBackend implements MonetisationBackend {
   PurchaseRecord _recordFromRow(Map<String, dynamic> row) => PurchaseRecord(
         transactionId: (row['transaction_id'] as String?) ?? '',
         productId: (row['product_id'] as String?) ?? '',
-        purchasedAt: DateTime.tryParse('${row['created_at']}') ?? DateTime.now(),
+        purchasedAt:
+            DateTime.tryParse('${row['created_at']}') ?? DateTime.now(),
         priceString: (row['price_string'] as String?) ?? '',
         revoked: row['revoked'] == true,
         state: row['state'] == 'failed'
@@ -363,8 +365,7 @@ class SupabaseBackend implements MonetisationBackend {
     );
   }
 
-  static TournamentStatus _statusFromDb(String value) =>
-      switch (value) {
+  static TournamentStatus _statusFromDb(String value) => switch (value) {
         'draft' => TournamentStatus.draft,
         'live' => TournamentStatus.live,
         'closed' => TournamentStatus.closed,

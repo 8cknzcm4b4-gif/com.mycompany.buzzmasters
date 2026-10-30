@@ -55,6 +55,14 @@ class _BmGameplayScreenState extends State<BmGameplayScreen> {
         children: [
           Row(
             children: [
+              BmIconButton(
+                icon: Icons.close_rounded,
+                color: BmColors.pink,
+                size: 36,
+                tooltip: 'Quit match',
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
+              const SizedBox(width: 8),
               RoundBadge(
                 round: _match.config.number,
                 title: _match.config.title,

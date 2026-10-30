@@ -15,7 +15,8 @@ import '../design/bm_theme.dart';
 import 'admob_ads.dart';
 import 'controller.dart';
 import 'gateways.dart';
-import 'revenuecat_store.dart';import 'rules.dart';
+import 'revenuecat_store.dart';
+import 'rules.dart';
 import 'supabase_backend.dart';
 
 /// Public, non-secret build configuration.
@@ -72,7 +73,8 @@ abstract final class GameAccountStore {
     }
     final random = Random.secure();
     final bytes = List<int>.generate(16, (_) => random.nextInt(256));
-    final created = 'acct_${bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join()}';
+    final created =
+        'acct_${bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join()}';
     await prefs.setString(_key, created);
     return BmGameAccount(created);
   }

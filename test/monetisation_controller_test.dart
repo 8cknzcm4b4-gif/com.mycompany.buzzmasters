@@ -78,7 +78,8 @@ void main() {
       expect(store.purchased, isEmpty);
     });
 
-    test('a product the store does not list is refused before checkout', () async {
+    test('a product the store does not list is refused before checkout',
+        () async {
       final store = FakeStore(catalogue: const []);
       final controller = buildController(store: store);
       await controller.load();
@@ -216,8 +217,14 @@ void main() {
       expect(controller.inventory.owns('trail_neon'), isTrue);
       // The three cosmetics plus the bundle itself, which the shop shows as
       // an owned indicator so a second charge is never offered.
-      expect(controller.inventory.ownedItemIds,
-          containsAll(['frame_aurora', 'trail_neon', 'celebration_thunder', 'bundle_starter']));
+      expect(
+          controller.inventory.ownedItemIds,
+          containsAll([
+            'frame_aurora',
+            'trail_neon',
+            'celebration_thunder',
+            'bundle_starter'
+          ]));
     });
 
     test('a duplicate purchase does not duplicate ownership', () async {
@@ -319,7 +326,8 @@ void main() {
     });
 
     test('an incomplete advert grants nothing', () async {
-      final controller = buildController(ads: FakeAds(result: const AdWatchResult.dismissed()));
+      final controller = buildController(
+          ads: FakeAds(result: const AdWatchResult.dismissed()));
       await controller.load();
 
       final decision = await controller.watchRewardedAd();
@@ -557,8 +565,9 @@ void main() {
         r'(service_role|supabase[_-]?service[_-]?key|-----BEGIN [A-Z ]*PRIVATE KEY|eyJ[A-Za-z0-9_-]{20,})',
       );
       expect(suspicious.hasMatch(MonetisationConfig.supabaseAnonKey), isFalse);
-      expect(MonetisationConfig.storeConfigured ||
-          MonetisationConfig.revenueCatApiKey.isEmpty,
+      expect(
+          MonetisationConfig.storeConfigured ||
+              MonetisationConfig.revenueCatApiKey.isEmpty,
           isTrue);
     });
 

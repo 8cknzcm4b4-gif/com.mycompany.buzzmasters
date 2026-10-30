@@ -32,7 +32,8 @@ void main() {
       expect(vipAccessAt(entitlement, now), isFalse);
     });
 
-    test('a locally-flipped flag without store verification grants nothing', () {
+    test('a locally-flipped flag without store verification grants nothing',
+        () {
       // isActive true but the source is not the store: the shape a naive
       // local boolean implementation would produce.
       const entitlement = VipEntitlement(
@@ -59,8 +60,8 @@ void main() {
         expiresAt: now.add(const Duration(days: 5)),
       );
       expect(vipAccessAt(entitlement, now), isTrue);
-      expect(vipAccessAt(entitlement, now.add(const Duration(days: 6))),
-          isFalse);
+      expect(
+          vipAccessAt(entitlement, now.add(const Duration(days: 6))), isFalse);
     });
 
     test('VIP never disables ordinary game access rules', () {
@@ -236,16 +237,18 @@ void main() {
 
     test('an owned item equips and then unequips', () {
       var inventory = grantItems(start, const ['frame_aurora']);
-      inventory = equipItem(inventory, ShopCategory.profileFrames, 'frame_aurora');
+      inventory =
+          equipItem(inventory, ShopCategory.profileFrames, 'frame_aurora');
       expect(inventory.equipped[ShopCategory.profileFrames], 'frame_aurora');
       inventory = unequipItem(inventory, ShopCategory.profileFrames);
-      expect(inventory.equipped.containsKey(ShopCategory.profileFrames), isFalse);
+      expect(
+          inventory.equipped.containsKey(ShopCategory.profileFrames), isFalse);
     });
 
     test('equipping replaces the item in the same slot only', () {
-      var inventory =
-          grantItems(start, const ['frame_aurora', 'trail_neon']);
-      inventory = equipItem(inventory, ShopCategory.profileFrames, 'frame_aurora');
+      var inventory = grantItems(start, const ['frame_aurora', 'trail_neon']);
+      inventory =
+          equipItem(inventory, ShopCategory.profileFrames, 'frame_aurora');
       inventory = equipItem(inventory, ShopCategory.racingTrails, 'trail_neon');
       expect(inventory.equipped, hasLength(2));
     });
@@ -337,7 +340,8 @@ void main() {
 
     test('an unknown product id resolves to nothing', () {
       expect(resolveProduct(const [], 'nope'), isNull);
-      expect(resolveProduct(const [price], ProductIds.starterBundle), isNotNull);
+      expect(
+          resolveProduct(const [price], ProductIds.starterBundle), isNotNull);
     });
 
     test('bundle grants map to their listed contents', () {
@@ -407,7 +411,8 @@ void main() {
       );
     });
 
-    test('ranking is deterministic: correct first, then tie-break, then id', () {
+    test('ranking is deterministic: correct first, then tie-break, then id',
+        () {
       final ranked = rankTournament(const [
         TournamentScore(playerId: 'bob', correct: 5, tiedBreakMs: 900),
         TournamentScore(playerId: 'ana', correct: 5, tiedBreakMs: 400),

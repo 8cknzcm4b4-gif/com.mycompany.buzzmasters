@@ -21,10 +21,10 @@ class BmLogo extends StatelessWidget {
           width: 62,
           child: CustomPaint(painter: _CrownPainter()),
         ),
-        _LogoWord(text: 'BUZZ', size: 74, gradient: BmGradients.gold),
+        const _LogoWord(text: 'BUZZ', size: 74, gradient: BmGradients.gold),
         Transform.translate(
           offset: const Offset(0, -8),
-          child: _LogoWord(
+          child: const _LogoWord(
             text: 'MASTERS',
             size: 62,
             gradient: BmGradients.silver,

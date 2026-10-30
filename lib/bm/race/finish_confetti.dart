@@ -79,9 +79,17 @@ class _FinishConfettiState extends State<FinishConfetti>
                     for (final piece in _pieces)
                       Positioned(
                         left: width / 2 +
-                            cos(piece.angle) * piece.distance * width * 0.55 * travel,
+                            cos(piece.angle) *
+                                piece.distance *
+                                width *
+                                0.55 *
+                                travel,
                         top: height * originY +
-                            sin(piece.angle) * piece.distance * height * 0.32 * travel +
+                            sin(piece.angle) *
+                                piece.distance *
+                                height *
+                                0.32 *
+                                travel +
                             height * 0.35 * t * t,
                         child: Opacity(
                           opacity: opacity,
