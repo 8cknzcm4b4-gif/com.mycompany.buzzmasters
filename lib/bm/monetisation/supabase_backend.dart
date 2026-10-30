@@ -180,19 +180,13 @@ class SupabaseBackend implements MonetisationBackend {
         message: 'Backend is not configured — ownership cannot be recorded.',
       );
     }
+    // The app never records its own purchases: the server asks RevenueCat
+    // (with the secret key) what this signed-in player owns and records that.
+    // `transactionId`, `priceString` and `revoked` are ignored on purpose.
     try {
-      final raw = await _rpc<Object?>(
-        'monetisation_record_purchase',
-        {
-          'p_account_id': accountId,
-          'p_transaction_id': transactionId,
-          'p_product_id': productId,
-          'p_price_string': priceString,
-          'p_revoked': revoked,
-        },
-        (r) => r,
-      );
-      final map = raw is Map ? raw : const <String, Object?>{};
+      final res = await _client.functions
+          .invoke('revenuecat-sync', body: {'product_id': productId});
+      final map = res.data is Map ? res.data as Map : const <String, Object?>{};
       final granted = <String>[
         if (map['granted_item_ids'] is List)
           for (final id in map['granted_item_ids'] as List) '$id',
@@ -206,7 +200,7 @@ class SupabaseBackend implements MonetisationBackend {
     } catch (error) {
       return PurchaseSyncResult(
         accepted: false,
-        message: 'Purchase could not be recorded: $error',
+        message: 'The purchase could not be verified yet: $error',
       );
     }
   }
@@ -253,29 +247,35 @@ class SupabaseBackend implements MonetisationBackend {
     required AdRewardPolicy policy,
   }) async {
     if (!_configured) return const AdRewardDecision(AdRewardOutcome.rejected);
-    try {
-      final raw = await _rpc<Object?>(
-        'monetisation_grant_ad_reward',
-        {
-          'p_account_id': accountId,
-          'p_event_id': eventId,
-          'p_utc_day': utcDay,
-          'p_signature_valid': signatureValid,
-          'p_coins': policy.sanitized().coinsPerReward,
-          'p_max_per_day': policy.sanitized().maxPerUtcDay,
-        },
-        (r) => r,
-      );
-      final map = raw is Map ? raw : const <String, Object?>{};
-      return AdRewardDecision(
-        _outcomeFromDb(map['outcome'] as String? ?? 'rejected'),
-        coins: _asInt(map['coins']),
-        usedToday: _asInt(map['used_today']),
-      );
-    } catch (error) {
-      return const AdRewardDecision(AdRewardOutcome.rejected);
+    // Coins are credited only by Google's signed SSV callback
+    // (supabase/functions/admob-ssv). The app waits for that record to
+    // appear; `signatureValid` from the device is never trusted.
+    for (var attempt = 0; attempt < ssvPollAttempts; attempt++) {
+      try {
+        final rows = await _client
+            .from('ad_reward_events')
+            .select('coins, verification')
+            .eq('account_id', accountId)
+            .eq('event_id', eventId)
+            .limit(1);
+        if (rows.isNotEmpty) {
+          final row = Map<String, dynamic>.from(rows.first as Map);
+          if (row['verification'] == 'ssv_verified') {
+            return AdRewardDecision(AdRewardOutcome.granted,
+                coins: _asInt(row['coins']));
+          }
+        }
+      } catch (_) {
+        // Keep waiting; a transient read failure is not a verdict.
+      }
+      await Future<void>.delayed(ssvPollInterval);
     }
+    return const AdRewardDecision(AdRewardOutcome.signatureInvalid);
   }
+
+  /// How long to wait for Google's verification callback to land.
+  static const ssvPollAttempts = 10;
+  static const ssvPollInterval = Duration(milliseconds: 1500);
 
   @override
   Future<AdRewardDecision> claimDailyReward({

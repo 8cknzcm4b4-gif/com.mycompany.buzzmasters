@@ -106,6 +106,7 @@ abstract final class BmMonetisation {
 
     final ads = AdMobRewardedAds(
       rewardedAdUnitId: MonetisationConfig.admobRewardedUnitId,
+      userId: account.id,
     );
     if (MonetisationConfig.adsConfigured) await ads.initialise();
 

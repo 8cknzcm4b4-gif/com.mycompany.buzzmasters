@@ -13,7 +13,11 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'gateways.dart';
 
 class AdMobRewardedAds implements AdsGateway {
-  AdMobRewardedAds({required this.rewardedAdUnitId});
+  AdMobRewardedAds({required this.rewardedAdUnitId, this.userId = ''});
+
+  /// Sent to AdMob server-side verification so the signed callback names the
+  /// player to credit (the Supabase user id).
+  final String userId;
 
   /// Google's TEST unit id while developing. A production unit id must be
   /// supplied through configuration before live adverts are enabled.
@@ -79,6 +83,11 @@ class AdMobRewardedAds implements AdsGateway {
         'ad-${DateTime.now().toUtc().microsecondsSinceEpoch}-${ad.hashCode}';
     _lastEventId = eventId;
     try {
+      if (userId.isNotEmpty) {
+        await ad.setServerSideOptions(
+          ServerSideVerificationOptions(userId: userId, customData: eventId),
+        );
+      }
       await ad.show(onUserEarnedReward: (fullAd, reward) {
         if (!completer.isCompleted) {
           completer.complete(AdWatchResult(
