@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../design/bm_theme.dart';
 import '../online/join_game_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
+
+import '../backend/bm_supabase.dart';
+import '../online/online_lobby_screen.dart';
 import '../online/online_race_service.dart';
 import '../race/race_practice_screen.dart';
 import '../settings/bm_music.dart';
@@ -49,7 +53,15 @@ class _BmWelcomeScreenState extends State<BmWelcomeScreen>
     duration: const Duration(seconds: 3),
   )..repeat(reverse: true);
 
-  late Future<LobbySession?> _resumable = OnlineRace.lastResumable();
+  late Future<RoomState?> _resumable = _findResumable();
+
+  /// The server's record of the player's live room; never a local guess.
+  static Future<RoomState?> _findResumable() async {
+    if (!OnlineRace.service.isConfigured) return null;
+    final result = await OnlineRace.service.liveRoom();
+    return result.value;
+  }
+
   bool _resuming = false;
 
   @override
@@ -65,7 +77,7 @@ class _BmWelcomeScreenState extends State<BmWelcomeScreen>
   }
 
   void _refreshResumable() {
-    final next = OnlineRace.lastResumable();
+    final next = _findResumable();
     setState(() {
       _resumable = next;
     });
@@ -77,25 +89,19 @@ class _BmWelcomeScreenState extends State<BmWelcomeScreen>
     if (mounted) _refreshResumable();
   }
 
-  Future<void> _resume(LobbySession session) async {
+  Future<void> _resume(RoomState room) async {
     setState(() => _resuming = true);
-    JoinResult result;
-    try {
-      result = await OnlineRace.service.resume(session);
-    } on Object {
-      result = const JoinResult.failed(JoinFailure.offline);
-    }
+    // Re-check with the server: the race may have ended since the card showed.
+    final result = await OnlineRace.service.roomState(room.roomId);
     if (!mounted) return;
     setState(() => _resuming = false);
-    final joined = result.session;
-    if (joined != null) {
-      await _open(OnlineLobbyScreen(session: joined));
+    final live = result.value;
+    if (live != null && live.isLive) {
+      await _open(onlineRoomScreen(live));
       return;
     }
-    // A lobby that can no longer be resumed is dropped so the card hides.
-    if (result.failure != JoinFailure.offline) await OnlineRace.forget();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(_snack(result.failure!.message));
+    ScaffoldMessenger.of(context).showSnackBar(_snack(
+        live == null ? result.message : 'That race has already finished.'));
     _refreshResumable();
   }
 
@@ -133,7 +139,7 @@ class _BmWelcomeScreenState extends State<BmWelcomeScreen>
                 ),
                 const SizedBox(height: 14),
                 _joinCard(),
-                FutureBuilder<LobbySession?>(
+                FutureBuilder<RoomState?>(
                   future: _resumable,
                   builder: (context, snap) {
                     final session = snap.data;
@@ -264,7 +270,7 @@ class _BmWelcomeScreenState extends State<BmWelcomeScreen>
     );
   }
 
-  Widget _resumeCard(LobbySession session) {
+  Widget _resumeCard(RoomState session) {
     return GestureDetector(
       key: const ValueKey('welcome-resume'),
       onTap: _resuming ? null : () => _resume(session),
@@ -326,7 +332,7 @@ class _BmWelcomeScreenState extends State<BmWelcomeScreen>
                 style: BmButtonStyle.white,
                 height: 44,
                 fontSize: 13,
-                onPressed: () => _accountNotice('Sign in with Apple'),
+                onPressed: () => _oauth(OAuthProvider.apple, 'Apple'),
               ),
             ),
             const SizedBox(width: 8),
@@ -337,7 +343,7 @@ class _BmWelcomeScreenState extends State<BmWelcomeScreen>
                 style: BmButtonStyle.white,
                 height: 44,
                 fontSize: 13,
-                onPressed: () => _accountNotice('Sign in with Google'),
+                onPressed: () => _oauth(OAuthProvider.google, 'Google'),
               ),
             ),
             const SizedBox(width: 8),
@@ -348,16 +354,22 @@ class _BmWelcomeScreenState extends State<BmWelcomeScreen>
                 style: BmButtonStyle.outline,
                 height: 44,
                 fontSize: 13,
-                onPressed: () => _accountNotice('Email accounts'),
+                onPressed: _email,
               ),
             ),
           ],
         ),
         const SizedBox(height: 8),
-        Text(
-          'Playing as a guest — progress is saved on this device.',
-          textAlign: TextAlign.center,
-          style: BmText.body(10.5, color: BmColors.muted),
+        ValueListenableBuilder<BmAccount?>(
+          valueListenable: BmAuth.account,
+          builder: (context, account, _) => Text(
+            account == null || account.isGuest
+                ? 'Playing as a guest — progress is saved on this device.'
+                : 'Signed in${account.email == null ? '' : ' as ${account.email}'}.',
+            key: const ValueKey('welcome-account-status'),
+            textAlign: TextAlign.center,
+            style: BmText.body(10.5, color: BmColors.muted),
+          ),
         ),
       ],
     );
@@ -366,9 +378,64 @@ class _BmWelcomeScreenState extends State<BmWelcomeScreen>
   void _accountNotice(String provider) {
     ScaffoldMessenger.of(context).showSnackBar(_snack(
       '$provider is not available yet: Buzz Masters accounts need the game '
-      'server and OAuth client IDs, which this build does not have. You can '
-      'keep playing as a guest.',
+      'server, which this build is not connected to. You can keep playing as '
+      'a guest.',
     ));
+  }
+
+  Future<void> _oauth(OAuthProvider provider, String name) async {
+    if (!BmAuth.available) return _accountNotice('Sign in with $name');
+    final outcome = await BmAuth.signInWith(provider);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(_snack(switch (outcome) {
+      BmAuthOutcome.redirected => 'Continue signing in with $name…',
+      _ => 'Sign in with $name failed. It must be enabled for this Buzz '
+          'Masters project in the Supabase dashboard.',
+    }));
+  }
+
+  Future<void> _email() async {
+    if (!BmAuth.available) return _accountNotice('Email sign-in');
+    final controller = TextEditingController();
+    final email = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: BmColors.panel,
+        title: Text('SIGN IN WITH EMAIL', style: BmText.display(18)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.emailAddress,
+          style: BmText.title(15),
+          decoration: const InputDecoration(hintText: 'you@example.com'),
+          onSubmitted: (v) => Navigator.of(context).pop(v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('CANCEL', style: BmText.label(11)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: Text('SEND LINK',
+                style: BmText.label(11, color: BmColors.gold)),
+          ),
+        ],
+      ),
+    );
+    final address = email?.trim() ?? '';
+    if (address.isEmpty || !mounted) return;
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(address)) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(_snack('That does not look like an email address.'));
+      return;
+    }
+    final outcome = await BmAuth.signInWithEmail(address);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(_snack(
+        outcome == BmAuthOutcome.emailSent
+            ? 'Check $address for your sign-in link.'
+            : 'Could not send the sign-in link. Please try again.'));
   }
 
   SnackBar _snack(String text) => SnackBar(

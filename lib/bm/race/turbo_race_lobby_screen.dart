@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../design/bm_theme.dart';
 import '../online/join_game_screen.dart';
+import '../online/online_lobby_screen.dart';
 import '../online/online_race_service.dart';
 import '../player/player_profile.dart';
 import '../screens/how_to_play_screen.dart';
@@ -112,6 +113,7 @@ class TurboRaceLobbyScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   BmButton(
+                    key: const ValueKey('lobby-host'),
                     label: online
                         ? 'HOST ONLINE RACE'
                         : 'HOST ONLINE RACE · SERVER OFFLINE',
@@ -121,7 +123,7 @@ class TurboRaceLobbyScreen extends StatelessWidget {
                     style: BmButtonStyle.outline,
                     height: 46,
                     fontSize: 12,
-                    onPressed: null,
+                    onPressed: online ? () => _host(context) : null,
                   ),
                   if (!online)
                     Padding(
@@ -140,6 +142,21 @@ class TurboRaceLobbyScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _host(BuildContext context) async {
+    final result = await OnlineRace.service.createRoom();
+    if (!context.mounted) return;
+    final room = result.value;
+    if (room == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: BmColors.panel,
+        content: Text(result.message, style: BmText.body(12.5)),
+      ));
+      return;
+    }
+    _push(context, onlineRoomScreen(room));
   }
 
   Widget _rule(String value, String label, Color color) => Column(

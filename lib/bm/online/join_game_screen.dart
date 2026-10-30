@@ -6,6 +6,7 @@ import '../race/race_practice_screen.dart';
 import '../widgets/bm_button.dart';
 import '../widgets/bm_panel.dart';
 import '../widgets/studio_background.dart';
+import 'online_lobby_screen.dart';
 import 'online_race_service.dart';
 
 /// Join an online race by its six-digit code.
@@ -42,31 +43,17 @@ class _JoinGameScreenState extends State<JoinGameScreen> {
       _busy = true;
       _error = null;
     });
-    final JoinResult result;
-    try {
-      result =
-          await OnlineRace.service.join(RaceCode.normalise(_controller.text));
-    } on Object {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-          _error = JoinFailure.offline.message;
-        });
-      }
-      return;
-    }
+    final result =
+        await OnlineRace.service.join(RaceCode.normalise(_controller.text));
     if (!mounted) return;
     setState(() => _busy = false);
-    final session = result.session;
-    if (session == null) {
-      setState(() => _error = result.failure!.message);
+    final room = result.value;
+    if (room == null) {
+      setState(() => _error = result.message);
       return;
     }
-    await OnlineRace.remember(session);
-    if (!mounted) return;
     await Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-          builder: (_) => OnlineLobbyScreen(session: session)),
+      MaterialPageRoute<void>(builder: (_) => onlineRoomScreen(room)),
     );
   }
 
@@ -200,98 +187,6 @@ class _JoinGameScreenState extends State<JoinGameScreen> {
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A lobby the server confirmed the player is in.
-class OnlineLobbyScreen extends StatelessWidget {
-  const OnlineLobbyScreen({super.key, required this.session});
-
-  final LobbySession session;
-
-  @override
-  Widget build(BuildContext context) {
-    return StudioScaffold(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-      child: Column(
-        children: [
-          ArenaHeader(
-            title: 'RACE LOBBY',
-            subtitle: 'CODE ${session.code}',
-          ),
-          const SizedBox(height: 12),
-          Text('Hosted by ${session.hostName}',
-              style: BmText.body(13, color: BmColors.muted)),
-          const SizedBox(height: 12),
-          Expanded(
-            child: GridView.count(
-              crossAxisCount: 2,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 2.6,
-              children: [
-                for (var i = 0; i < 6; i++)
-                  BmPanel(
-                    color: i < session.players.length
-                        ? BmColors.seatColors[i]
-                        : BmColors.panelEdge,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
-                      children: [
-                        Text('${i + 1}',
-                            style: BmText.display(18,
-                                color: BmColors.seatColors[i])),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            i < session.players.length
-                                ? session.players[i]
-                                : 'Open seat',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: BmText.title(13,
-                                color: i < session.players.length
-                                    ? Colors.white
-                                    : BmColors.muted),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          BmPanel(
-            color: BmColors.cyan,
-            child: Row(
-              children: [
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: BmColors.cyan),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text('Waiting for the host to start the race…',
-                      style: BmText.body(13)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          BmButton(
-            label: 'LEAVE LOBBY',
-            style: BmButtonStyle.outline,
-            height: 48,
-            onPressed: () async {
-              await OnlineRace.forget();
-              if (context.mounted) Navigator.of(context).pop();
-            },
           ),
         ],
       ),

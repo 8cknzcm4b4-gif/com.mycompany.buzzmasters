@@ -5,7 +5,10 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'flutter_flow/nav/nav.dart';
+import 'bm/backend/bm_supabase.dart';
 import 'bm/bm_app.dart';
+import 'bm/online/online_race_service.dart';
+import 'bm/online/supabase_online_race_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,6 +16,13 @@ void main() async {
   usePathUrlStrategy();
 
   await FlutterFlowTheme.initialize();
+
+  // Online play needs the dedicated Buzz Masters Supabase project, supplied
+  // with --dart-define=SUPABASE_URL=… --dart-define=SUPABASE_ANON_KEY=….
+  // Without it the app runs fully offline and says so where it matters.
+  if (await BmSupabase.ensureInitialized()) {
+    OnlineRace.service = SupabaseOnlineRaceService();
+  }
 
   runApp(const BuzzMastersApp());
 }

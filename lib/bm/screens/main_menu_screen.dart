@@ -38,6 +38,14 @@ class BmMainMenuScreen extends StatefulWidget {
 class _BmMainMenuScreenState extends State<BmMainMenuScreen> {
   int _tab = 0;
 
+  /// Bumped each time a live-data tab is opened, so it refetches.
+  final _visits = List<int>.filled(5, 0);
+
+  void _select(int i) => setState(() {
+        _tab = i;
+        _visits[i]++;
+      });
+
   static const _tabs = [
     (Icons.home_rounded, 'Home'),
     (Icons.sports_score_rounded, 'Race'),
@@ -62,10 +70,12 @@ class _BmMainMenuScreenState extends State<BmMainMenuScreen> {
             child: IndexedStack(
               index: _tab,
               children: [
-                _HomeTab(onTab: (i) => setState(() => _tab = i)),
+                _HomeTab(onTab: _select),
                 const TurboRaceLobbyScreen(showBack: false),
-                const LeaderboardScreen(showBack: false),
-                const FriendsScreen(showBack: false),
+                LeaderboardScreen(
+                    key: ValueKey('ranks-${_visits[2]}'), showBack: false),
+                FriendsScreen(
+                    key: ValueKey('friends-${_visits[3]}'), showBack: false),
                 const ProfileScreen(showBack: false),
               ],
             ),
@@ -95,7 +105,7 @@ class _BmMainMenuScreenState extends State<BmMainMenuScreen> {
                 Expanded(
                   child: InkWell(
                     key: ValueKey('tab-${_tabs[i].$2}'),
-                    onTap: () => setState(() => _tab = i),
+                    onTap: () => _select(i),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Column(

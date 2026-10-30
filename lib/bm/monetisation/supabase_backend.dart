@@ -9,6 +9,8 @@ import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../backend/bm_supabase.dart';
+
 import 'gateways.dart';
 import 'models.dart';
 
@@ -31,8 +33,8 @@ class SupabaseBackend implements MonetisationBackend {
 
   Future<void> configure() async {
     if (!credentialsPresent(url: url, anonKey: anonKey) || _configured) return;
-    await Supabase.initialize(url: url, publishableKey: anonKey);
-    _configured = true;
+    // One shared client for monetisation and online racing.
+    _configured = await BmSupabase.ensureInitialized();
   }
 
   SupabaseClient get _client => Supabase.instance.client;

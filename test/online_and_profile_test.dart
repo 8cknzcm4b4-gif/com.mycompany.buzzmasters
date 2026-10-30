@@ -24,44 +24,92 @@ void main() {
   });
 
   group('online service', () {
-    setUp(() => SharedPreferences.setMockInitialValues({}));
-
     test('the unconfigured service never invents a lobby', () async {
       const service = UnconfiguredOnlineRaceService();
       expect(service.isConfigured, isFalse);
-      final result = await service.join('482913');
-      expect(result.ok, isFalse);
-      expect(result.failure, JoinFailure.notConfigured);
+      for (final result in [
+        await service.join('482913'),
+        await service.createRoom(),
+        await service.liveRoom(),
+      ]) {
+        expect(result.ok, isFalse);
+        expect(result.error, OnlineError.notConfigured);
+      }
+      expect((await service.leaderboard()).ok, isFalse);
+      expect((await service.friends()).ok, isFalse);
     });
 
-    test('nothing is resumable until a join was confirmed', () async {
-      expect(await OnlineRace.lastResumable(), isNull);
+    test('room state parses the server JSON and ranks like the server', () {
+      final room = RoomState.fromJson(const {
+        'ok': true,
+        'room_id': 'r1',
+        'code': '482913',
+        'status': 'racing',
+        'is_host': false,
+        'question_number': 4,
+        'questions_resolved': 3,
+        'rules': {'distance': 100, 'window_ms': 8000, 'max_questions': 30},
+        'players': [
+          {
+            'id': 'a',
+            'seat': 1,
+            'name': 'Nova',
+            'color': 0,
+            'progress': 40,
+            'is_host': true
+          },
+          {
+            'id': 'b',
+            'seat': 2,
+            'name': 'Rio',
+            'color': 1,
+            'progress': 100,
+            'finished': true,
+            'finished_ms': 52000,
+            'is_me': true
+          },
+          {
+            'id': 'c',
+            'seat': 3,
+            'name': 'Jet',
+            'color': 2,
+            'progress': 60,
+            'eliminated': true
+          },
+          {
+            'id': 'd',
+            'seat': 4,
+            'name': 'Zed',
+            'color': 3,
+            'progress': 40,
+            'connected': false
+          },
+        ],
+        'question': {
+          'index': 3,
+          'prompt': 'Q?',
+          'options': ['A', 'B'],
+          'remaining_ms': 5100
+        },
+        'my_answer': {'option': 1, 'correct': true, 'delta': 15},
+      });
+      expect(room.status, RoomStatus.racing);
+      expect(room.isLive, isTrue);
+      expect(room.hostName, 'Nova');
+      expect(room.me!.name, 'Rio');
+      expect(room.question!.options, ['A', 'B']);
+      expect(room.myAnswer!.delta, 15);
+      expect(room.players.last.connected, isFalse);
+      // Finisher first; ties on distance break by seat; eliminated last.
+      expect(room.positions, {'b': 1, 'a': 2, 'd': 3, 'c': 4});
     });
 
-    test('a remembered lobby is resumable only inside the window', () async {
-      final joined = DateTime(2026, 10, 29, 12);
-      await OnlineRace.remember(LobbySession(
-        code: '482913',
-        lobbyId: 'lobby-1',
-        hostName: 'Sam',
-        players: const ['Sam'],
-        joinedAt: joined,
-      ));
-      final soon = await OnlineRace.lastResumable(
-          now: joined.add(const Duration(minutes: 30)));
-      expect(soon?.code, '482913');
-      final late = await OnlineRace.lastResumable(
-          now: joined.add(const Duration(hours: 3)));
-      expect(late, isNull);
-
-      await OnlineRace.forget();
-      expect(await OnlineRace.lastResumable(now: joined), isNull);
-    });
-
-    test('a corrupt saved session is ignored', () async {
-      SharedPreferences.setMockInitialValues(
-          {'bm_last_online_session_v1': '{not json'});
-      expect(await OnlineRace.lastResumable(), isNull);
+    test('server error codes become player messages', () {
+      expect(const OnlineResult<int>.fail('full').message, contains('full'));
+      expect(
+          const OnlineResult<int>.fail('expired').message, contains('expired'));
+      expect(
+          const OnlineResult<int>.fail('mystery').message, contains('mystery'));
     });
   });
 

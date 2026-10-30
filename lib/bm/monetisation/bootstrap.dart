@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../design/bm_theme.dart';
+import '../backend/bm_supabase.dart';
 import 'admob_ads.dart';
 import 'controller.dart';
 import 'gateways.dart';
@@ -88,7 +89,12 @@ abstract final class BmMonetisation {
     final existing = _controller;
     if (existing != null) return existing;
 
-    final account = await GameAccountStore.resolve();
+    // With a server, the account is the signed-in Supabase user, which is
+    // what the monetisation RLS policies (auth.uid() = account_id) expect.
+    final account =
+        await BmSupabase.ensureInitialized() && await BmAuth.ensureSession()
+            ? BmGameAccount(BmSupabase.client.auth.currentUser!.id)
+            : await GameAccountStore.resolve();
 
     final store = MonetisationConfig.storeConfigured
         ? RevenueCatStore(

@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:buzz_masters/bm/online/join_game_screen.dart';
+import 'package:buzz_masters/bm/online/online_lobby_screen.dart';
+import 'package:buzz_masters/bm/online/online_race_screen.dart';
 import 'package:buzz_masters/bm/online/online_race_service.dart';
 import 'package:buzz_masters/bm/player/player_profile.dart';
 import 'package:buzz_masters/bm/race/race_practice_screen.dart';
@@ -16,29 +18,7 @@ import 'package:buzz_masters/bm/screens/welcome_screen.dart';
 import 'package:buzz_masters/bm/settings/bm_audio_settings.dart';
 import 'package:buzz_masters/bm/widgets/bm_panel.dart';
 
-/// A server stand-in for the join flow: 123456 is an open lobby, 111111 is
-/// full, 222222 has expired, anything else does not exist.
-class _FakeServer implements OnlineRaceService {
-  @override
-  bool get isConfigured => true;
-
-  @override
-  Future<JoinResult> join(String code) async => switch (code) {
-        '123456' => JoinResult.joined(LobbySession(
-            code: code,
-            lobbyId: 'lobby-$code',
-            hostName: 'Sam',
-            players: const ['Sam', 'Player'],
-            joinedAt: DateTime.now(),
-          )),
-        '111111' => const JoinResult.failed(JoinFailure.full),
-        '222222' => const JoinResult.failed(JoinFailure.expired),
-        _ => const JoinResult.failed(JoinFailure.notFound),
-      };
-
-  @override
-  Future<JoinResult> resume(LobbySession previous) => join(previous.code);
-}
+import 'online/fake_online_server.dart';
 
 /// The arena animates forever, so pump frames instead of settling.
 Future<void> _frames(WidgetTester tester, [int count = 8]) async {
@@ -95,41 +75,168 @@ void main() {
     expect(find.byType(BmWelcomeScreen), findsOneWidget);
   });
 
-  testWidgets('welcome → join → lobby, then resume returns to the same lobby',
+  testWidgets('welcome → join game → enter code → server lobby → resume',
       (tester) async {
-    OnlineRace.service = _FakeServer();
+    final server = FakeOnlineServer();
+    final host = server.client('host', 'Sam');
+    final lobby = (await host.createRoom()).value!;
+    OnlineRace.service = server.client('me', 'Nova');
     await _openWelcome(tester);
+    // Nothing on the server yet for this player.
+    expect(find.text('RESUME LAST SESSION'), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('welcome-get-started')));
     await _frames(tester);
+    // The field filters letters out, so this arrives as five digits.
+    await _enterCode(tester, '12a456');
+    expect(find.text('Race codes are exactly 6 digits.'), findsOneWidget);
+    final missing = lobby.code == '000000' ? '000001' : '000000';
+    await _enterCode(tester, missing);
+    expect(find.text(OnlineError.message('not_found')), findsOneWidget);
 
-    await _enterCode(tester, '999999');
-    expect(find.text(JoinFailure.notFound.message), findsOneWidget);
-    await _enterCode(tester, '111111');
-    expect(find.text(JoinFailure.full.message), findsOneWidget);
-    await _enterCode(tester, '222222');
-    expect(find.text(JoinFailure.expired.message), findsOneWidget);
-
-    await _enterCode(tester, '123-456');
+    await _enterCode(
+        tester, '${lobby.code.substring(0, 3)}-${lobby.code.substring(3)}');
     expect(find.byType(OnlineLobbyScreen), findsOneWidget);
-    expect(find.text('CODE 123456'), findsOneWidget);
-    expect(find.text('Hosted by Sam'), findsOneWidget);
+    expect(find.text('Sam'), findsOneWidget);
+    expect(find.text('Nova'), findsOneWidget);
+    expect(find.text('Waiting for Sam to start the race…'), findsOneWidget);
 
-    // Back to the welcome screen without leaving the lobby.
-    await _back(tester);
+    // Lobby → welcome without leaving: the server keeps the seat, so it
+    // offers a resume.
+    Navigator.of(tester.element(find.byType(OnlineLobbyScreen))).pop();
+    await _frames(tester);
     expect(find.byType(BmWelcomeScreen), findsOneWidget);
     expect(find.text('RESUME LAST SESSION'), findsOneWidget);
-    expect(find.text('Race code 123456'), findsOneWidget);
+    expect(find.text('Race code ${lobby.code}'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('welcome-resume')));
     await _frames(tester);
     expect(find.byType(OnlineLobbyScreen), findsOneWidget);
 
-    // Leaving forgets the session, so the resume card disappears.
-    await tester.tap(find.text('LEAVE LOBBY'));
-    await _frames(tester);
+    // Leaving gives the seat up; the resume card goes with it.
+    await _back(tester);
     expect(find.byType(BmWelcomeScreen), findsOneWidget);
     expect(find.text('RESUME LAST SESSION'), findsNothing);
+    expect(server.rooms[lobby.roomId]!.players.containsKey('me'), isFalse);
+  });
+
+  testWidgets('full and expired races give clear errors', (tester) async {
+    final server = FakeOnlineServer();
+    final old = (await server.client('o', 'Old').createRoom()).value!;
+    server.advance(31 * 60 * 1000); // the old lobby expires
+    final full = (await server.client('h', 'Host').createRoom()).value!;
+    for (var i = 0; i < 5; i++) {
+      await server.client('p$i', 'P$i').join(full.code);
+    }
+    OnlineRace.service = server.client('me', 'Nova');
+
+    await _openWelcome(tester);
+    await tester.tap(find.byKey(const ValueKey('welcome-get-started')));
+    await _frames(tester);
+    await _enterCode(tester, full.code);
+    expect(find.text(OnlineError.message('full')), findsOneWidget);
+    await _enterCode(tester, old.code);
+    expect(find.text(OnlineError.message('expired')), findsOneWidget);
+  });
+
+  testWidgets('host online race → rival joins → start → race → results → home',
+      (tester) async {
+    final server = FakeOnlineServer();
+    OnlineRace.service = server.client('me', 'Nova');
+    final rival = server.client('rival', 'Rio', color: 3);
+    await _openWelcome(tester);
+    await tester.tap(find.byKey(const ValueKey('welcome-play')));
+    await _frames(tester);
+    await tester.tap(find.byKey(const ValueKey('tab-Race')));
+    await _frames(tester);
+
+    await tester.tap(find.byKey(const ValueKey('lobby-host')));
+    await _frames(tester);
+    expect(find.byType(OnlineLobbyScreen), findsOneWidget);
+    final room = server.rooms.values.single;
+    expect(find.text('NEED 2 RACERS TO START'), findsOneWidget);
+
+    await rival.join(room.code);
+    await _frames(tester, 12); // the lobby polls every second
+    expect(find.text('Rio'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('online-start')));
+    await _frames(tester);
+    expect(find.byType(OnlineRaceScreen), findsOneWidget);
+    expect(find.text('GET READY'), findsOneWidget);
+
+    // The countdown ends on the server clock and the first question opens.
+    server.advance(3100);
+    await _frames(tester, 10);
+    expect(find.byType(AnswerTile), findsWidgets);
+
+    // Answer every question right and fast; the rival stays silent.
+    var answered = 0;
+    for (var guard = 0; guard < 40 && room.status == 'racing'; guard++) {
+      if (find.byType(AnswerTile).evaluate().isEmpty) {
+        server.advance(1600); // reveal pause, then the next question opens
+        await _frames(tester, 10);
+        continue;
+      }
+      final right = server.correctIndexFor(room.id);
+      await tester.ensureVisible(find.byType(AnswerTile).at(right));
+      await tester.pump();
+      await tester.tap(find.byType(AnswerTile).at(right));
+      await _frames(tester, 3);
+      answered++;
+      // Correct, or (once the rival is out and only we answer) the server
+      // resolves at once and the reveal shows the answer instead.
+      // The winning answer ends the race at once.
+      if (room.status == 'racing') {
+        expect(
+            find.textContaining('Correct!').evaluate().length +
+                find.byKey(const ValueKey('online-reveal')).evaluate().length,
+            1);
+      }
+      server.advance(8100); // the rival times out, the question resolves
+      await _frames(tester, 10);
+    }
+    expect(answered, 7); // 7 fast answers x 15 = 105 -> the finish
+    expect(room.status, 'finished');
+    for (var i = 0; i < 30 && find.text('RESULTS').evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    expect(find.text('RESULTS'), findsOneWidget);
+    expect(find.text('YOU WIN THE RACE!'), findsOneWidget);
+    expect(PlayerProfileStore.current.value.wins, 1);
+
+    await tester.tap(find.text('BACK TO LOBBY'));
+    await _frames(tester);
+    expect(find.byKey(const ValueKey('lobby-host')), findsOneWidget);
+
+    // The win is on the global leaderboard.
+    await tester.tap(find.byKey(const ValueKey('tab-Ranks')));
+    await _frames(tester);
+    expect(find.text('Nova (you)'), findsOneWidget);
+  });
+
+  testWidgets('a dropped connection shows reconnecting, then recovers',
+      (tester) async {
+    final server = FakeOnlineServer();
+    final me = server.client('me', 'Nova');
+    final room = (await me.createRoom()).value!;
+    await server.client('r', 'Rio').join(room.code);
+    final started = (await me.startRace(room.roomId)).value!;
+    OnlineRace.service = me;
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester
+        .pumpWidget(MaterialApp(home: OnlineRaceScreen(initial: started)));
+    await _frames(tester, 3);
+
+    me.offline = true;
+    await _frames(tester, 10);
+    expect(find.byKey(const ValueKey('online-reconnecting')), findsOneWidget);
+    me.offline = false;
+    server.advance(3100);
+    await _frames(tester, 10);
+    expect(find.byKey(const ValueKey('online-reconnecting')), findsNothing);
+    expect(find.byType(AnswerTile), findsWidgets);
   });
 
   testWidgets('welcome → settings → change music → saved → back home',

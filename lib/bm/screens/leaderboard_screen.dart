@@ -29,6 +29,8 @@ class LeaderboardScreen extends StatefulWidget {
 
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
   late Future<GhostTrack?> _load = _fetch();
+  late Future<OnlineResult<List<LeaderboardRow>>> _globalLoad =
+      OnlineRace.service.leaderboard();
   int _tab = 0;
 
   Future<GhostTrack?> _fetch() async {
@@ -109,13 +111,100 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         ),
       );
     }
-    return _state(
-      icon: Icons.leaderboard_rounded,
-      color: BmColors.cyan,
-      title: 'NO RANKINGS YET',
-      body: 'Finish an online race to appear on the leaderboard.',
+    return FutureBuilder<OnlineResult<List<LeaderboardRow>>>(
+      future: _globalLoad,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(
+              child: CircularProgressIndicator(color: BmColors.cyan));
+        }
+        final result = snap.data!;
+        final rows = result.value;
+        if (rows == null) {
+          return _state(
+            icon: Icons.cloud_off_rounded,
+            color: BmColors.red,
+            title: 'COULD NOT LOAD RANKINGS',
+            body: result.message,
+            action: BmButton(
+              label: 'TRY AGAIN',
+              height: 46,
+              onPressed: () {
+                final next = OnlineRace.service.leaderboard();
+                setState(() {
+                  _globalLoad = next;
+                });
+              },
+            ),
+          );
+        }
+        if (rows.isEmpty) {
+          return _state(
+            icon: Icons.leaderboard_rounded,
+            color: BmColors.cyan,
+            title: 'NO RANKINGS YET',
+            body: 'Finish an online race to appear on the leaderboard.',
+          );
+        }
+        return ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            for (final r in rows)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: BmPanel(
+                  color: r.isMe
+                      ? BmColors.gold
+                      : r.rank <= 3
+                          ? BmColors.purple
+                          : BmColors.panelEdge,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 34,
+                        child: Text('#${r.rank}',
+                            style: BmText.display(16,
+                                color: r.rank == 1
+                                    ? BmColors.gold
+                                    : Colors.white)),
+                      ),
+                      CircleAvatar(
+                        radius: 15,
+                        backgroundColor: BmColors.seatColors[r.color % 6],
+                        child: Text(r.name.characters.first.toUpperCase(),
+                            style: BmText.display(13, color: BmColors.deep)),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(r.isMe ? '${r.name} (you)' : r.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: BmText.title(14)),
+                      ),
+                      _mini('${r.wins}', 'WINS', BmColors.gold),
+                      _mini('${r.podiums}', 'PODIUMS', BmColors.purple),
+                      _mini('${r.races}', 'RACES', BmColors.cyan),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
+
+  Widget _mini(String value, String label, Color color) => SizedBox(
+        width: 50,
+        child: Column(
+          children: [
+            Text(value, style: BmText.display(15, color: color)),
+            Text(label, style: BmText.label(6.5)),
+          ],
+        ),
+      );
 
   Widget _records() {
     return FutureBuilder<GhostTrack?>(

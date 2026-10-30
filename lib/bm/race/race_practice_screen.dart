@@ -528,10 +528,18 @@ class _RacePracticeScreenState extends State<RacePracticeScreen> {
           children: [
             Row(
               children: [
-                BmChip(text: question.category, color: BmColors.cyan),
-                const SizedBox(width: 6),
-                BmChip(text: question.difficulty, color: BmColors.purple),
-                const Spacer(),
+                // Wraps so long categories never overflow a narrow phone.
+                Expanded(
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      BmChip(text: question.category, color: BmColors.cyan),
+                      BmChip(text: question.difficulty, color: BmColors.purple),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
                 TimerRing(
                   secondsLeft: leftMs / 1000,
                   total: _config.questionWindowMs / 1000,
