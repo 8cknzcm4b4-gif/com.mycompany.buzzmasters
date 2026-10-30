@@ -66,6 +66,9 @@ class BmAudioSettings {
     }
   }
 
+  /// Back to defaults, after the device data is erased.
+  static void reset() => resetForTests();
+
   /// Clears cached state so tests start from a known point.
   @visibleForTesting
   static void resetForTests() {

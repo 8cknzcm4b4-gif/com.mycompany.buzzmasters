@@ -159,11 +159,17 @@ class TurboRaceLobbyScreen extends StatelessWidget {
     _push(context, onlineRoomScreen(room));
   }
 
-  Widget _rule(String value, String label, Color color) => Column(
-        children: [
-          Text(value, style: BmText.display(18, color: color)),
-          Text(label, style: BmText.label(7.5)),
-        ],
+  // Each rule takes an equal share and scales down on narrow phones.
+  Widget _rule(String value, String label, Color color) => Expanded(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            children: [
+              Text(value, style: BmText.display(18, color: color)),
+              Text(label, style: BmText.label(7.5)),
+            ],
+          ),
+        ),
       );
 }
 

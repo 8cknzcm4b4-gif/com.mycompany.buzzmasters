@@ -8,6 +8,20 @@
 - **Branch holding the work:** `main`
 - **Race code location:** `lib/bm/race/` (FlutterFlow pages live in `lib/pages/`)
 
+## API access diagnosed (2026-10-30)
+
+The earlier `401 Unauthorized` came from calling the API **without any
+token**. The token saved by the FlutterFlow CLI (`~/.flutterflow/
+credentials.json`) is valid: `listProjects` → 200, and
+`flutterflow export-code -p buzz-masters-9ci2h7` downloads the project.
+
+That export proves FlutterFlow and GitHub hold **different apps**:
+FlutterFlow's `lib/main.dart` runs `MyApp` with 8 pages and has no `lib/bm`
+(none of the redesign, racing, multiplayer or monetisation code) and no
+Supabase, audio or RevenueCat packages. The CLI can only export, so GitHub →
+FlutterFlow sync is not possible with this access, and nothing was written to
+the FlutterFlow project. Builds must come from this repository.
+
 ## Why FlutterFlow builds do not show the custom game (checked 2026-10-30)
 
 `lib/main.dart` runs `BuzzMastersApp` from `lib/bm/`; the FlutterFlow pages

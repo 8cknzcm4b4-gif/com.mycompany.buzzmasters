@@ -1,3 +1,7 @@
 #include "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
 #include "Generated.xcconfig"
 OTHER_LDFLAGS = $(inherited) -ObjC
+// AdMob application id read by Info.plist (GADApplicationIdentifier).
+// Default: Google's official iOS TEST app id. Replace with the production id
+// from AdMob before release (see docs/release-readiness.md).
+ADMOB_APP_ID = ca-app-pub-3940256099942544~1458002511

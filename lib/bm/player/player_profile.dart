@@ -244,6 +244,9 @@ abstract final class PlayerProfileStore {
             answeredQuestions: answeredQuestions,
           ));
 
+  /// Forgets the in-memory profile (after the device data is erased).
+  static void reset() => resetForTests();
+
   @visibleForTesting
   static void resetForTests() {
     _loading = null;

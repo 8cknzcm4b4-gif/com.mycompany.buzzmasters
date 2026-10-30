@@ -9,6 +9,11 @@
         tools:replace="android:label"
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true">
+        <!-- AdMob app id (required: the Mobile Ads SDK aborts start-up
+             without it). Set via the admobAppId Gradle property. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${admobAppId}"/>
 
         <activity
             android:name=".MainActivity"

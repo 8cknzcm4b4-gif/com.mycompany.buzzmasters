@@ -2,13 +2,19 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
+
+import '../backend/account_actions.dart';
+import '../backend/bm_supabase.dart';
 import '../design/bm_theme.dart';
+import '../monetisation/ui/vip_screen.dart';
 import '../monetisation/ui/admin_dashboard_screen.dart';
 import '../settings/bm_audio_settings.dart';
 import '../widgets/bm_button.dart';
 import '../widgets/bm_panel.dart';
 import '../widgets/studio_background.dart';
 import 'how_to_play_screen.dart';
+import 'legal_screen.dart';
 import 'profile_screen.dart';
 
 /// Settings: sound, music and haptic preferences (saved on change), plus
@@ -76,6 +82,8 @@ class _BmSettingsScreenState extends State<BmSettingsScreen> {
                         color: BmColors.muted, weight: FontWeight.w400),
                   ),
                   const SizedBox(height: 18),
+                  _AccountPanel(onChanged: () => setState(() {})),
+                  const SizedBox(height: 18),
                   _LinkRow(
                     icon: Icons.person_rounded,
                     label: 'PLAYER PROFILE',
@@ -88,6 +96,29 @@ class _BmSettingsScreenState extends State<BmSettingsScreen> {
                     label: 'HOW TO PLAY',
                     sub: 'Race rules and scoring',
                     onTap: () => _push(const HowToPlayScreen()),
+                  ),
+                  const SizedBox(height: 10),
+                  _LinkRow(
+                    icon: Icons.workspace_premium_rounded,
+                    label: 'VIP & RESTORE PURCHASES',
+                    sub: 'Membership, and restoring past purchases',
+                    onTap: () => _push(const VipMembershipScreen()),
+                  ),
+                  const SizedBox(height: 10),
+                  _LinkRow(
+                    icon: Icons.privacy_tip_rounded,
+                    label: 'PRIVACY POLICY',
+                    sub: 'What Buzz Masters stores and why',
+                    onTap: () =>
+                        _push(const LegalScreen(page: LegalPage.privacy)),
+                  ),
+                  const SizedBox(height: 10),
+                  _LinkRow(
+                    icon: Icons.gavel_rounded,
+                    label: 'TERMS OF USE',
+                    sub: 'Fair play, purchases and names',
+                    onTap: () =>
+                        _push(const LegalScreen(page: LegalPage.terms)),
                   ),
                   const SizedBox(height: 10),
                   _LinkRow(
@@ -210,6 +241,109 @@ class _ToggleRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Account status and actions: sign in (Apple / Google / email link, which is
+/// also account recovery), sign out, and permanent deletion.
+class _AccountPanel extends StatelessWidget {
+  const _AccountPanel({required this.onChanged});
+
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<BmAccount?>(
+      valueListenable: BmAuth.account,
+      builder: (context, account, _) {
+        final online = BmAuth.available;
+        final signedIn = account != null && !account.isGuest;
+        final status = !online
+            ? 'Guest on this device · online accounts not connected'
+            : account == null
+                ? 'Not signed in'
+                : account.isGuest
+                    ? 'Guest account · sign in to keep progress on any device'
+                    : 'Signed in${account.email == null ? '' : ' as ${account.email}'}';
+        Widget action(String label, IconData icon, VoidCallback onTap,
+                {Color color = BmColors.cyan}) =>
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: BmButton(
+                label: label,
+                icon: icon,
+                style: color == BmColors.red
+                    ? BmButtonStyle.outline
+                    : BmButtonStyle.white,
+                height: 42,
+                fontSize: 12.5,
+                onPressed: onTap,
+              ),
+            );
+        return BmPanel(
+          color: signedIn ? BmColors.green : BmColors.violet,
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                      signedIn
+                          ? Icons.verified_user_rounded
+                          : Icons.person_outline_rounded,
+                      color: signedIn ? BmColors.green : BmColors.cyan),
+                  const SizedBox(width: 10),
+                  Text('ACCOUNT', style: BmText.label(10, color: Colors.white)),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(status,
+                  key: const ValueKey('settings-account-status'),
+                  style: BmText.body(12, color: BmColors.muted)),
+              if (!signedIn) ...[
+                action(
+                    'Sign in with Apple',
+                    Icons.apple,
+                    () => AccountActions.oauth(
+                        context, OAuthProvider.apple, 'Apple')),
+                action(
+                    'Sign in with Google',
+                    Icons.g_mobiledata_rounded,
+                    () => AccountActions.oauth(
+                        context, OAuthProvider.google, 'Google')),
+                action('Email sign-in or recovery', Icons.mail_rounded,
+                    () => AccountActions.email(context)),
+              ] else
+                action('Sign out', Icons.logout_rounded, () async {
+                  await BmAuth.signOut();
+                  if (context.mounted) {
+                    AccountActions.say(context, 'Signed out.');
+                  }
+                }),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: TextButton.icon(
+                  key: const ValueKey('settings-delete'),
+                  onPressed: () async {
+                    await AccountActions.confirmAndDelete(context);
+                    onChanged();
+                  },
+                  icon: const Icon(Icons.delete_forever_rounded,
+                      color: BmColors.red, size: 20),
+                  label: Text(
+                    online && account != null
+                        ? 'DELETE ACCOUNT'
+                        : 'ERASE DATA ON THIS DEVICE',
+                    style: BmText.label(10, color: BmColors.red),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

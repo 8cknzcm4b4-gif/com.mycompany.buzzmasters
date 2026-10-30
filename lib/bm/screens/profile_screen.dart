@@ -178,10 +178,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text('RACING COLOUR', style: BmText.label(9)),
+          ),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('RACING COLOUR', style: BmText.label(9)),
               for (var i = 0; i < BmColors.seatColors.length; i++)
                 GestureDetector(
                   onTap: () => PlayerProfileStore.setColor(i),

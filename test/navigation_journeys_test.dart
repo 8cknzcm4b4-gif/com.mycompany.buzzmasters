@@ -10,6 +10,8 @@ import 'package:buzz_masters/bm/player/player_profile.dart';
 import 'package:buzz_masters/bm/race/race_practice_screen.dart';
 import 'package:buzz_masters/bm/race/turbo_race_lobby_screen.dart';
 import 'package:buzz_masters/bm/screens/how_to_play_screen.dart';
+import 'package:buzz_masters/bm/screens/legal_screen.dart';
+import 'package:buzz_masters/bm/monetisation/ui/vip_screen.dart';
 import 'package:buzz_masters/bm/screens/leaderboard_screen.dart';
 import 'package:buzz_masters/bm/screens/main_menu_screen.dart';
 import 'package:buzz_masters/bm/screens/profile_screen.dart';
@@ -368,5 +370,71 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('lobby-practice')));
     await _frames(tester);
     expect(find.byType(RacePracticeScreen), findsOneWidget);
+  });
+
+  Future<void> openSettings(WidgetTester tester) async {
+    await _openWelcome(tester);
+    await tester.tap(find.byKey(const ValueKey('welcome-settings')));
+    await _frames(tester);
+    expect(find.byType(BmSettingsScreen), findsOneWidget);
+  }
+
+  Future<void> tapRow(WidgetTester tester, String label) async {
+    await tester.scrollUntilVisible(find.text(label), 200,
+        scrollable: find.byType(Scrollable).last);
+    await tester.tap(find.text(label));
+    await _frames(tester);
+  }
+
+  testWidgets('settings → privacy policy and terms open and close',
+      (tester) async {
+    await openSettings(tester);
+    expect(find.text('Guest on this device · online accounts not connected'),
+        findsOneWidget);
+    await tapRow(tester, 'PRIVACY POLICY');
+    expect(find.byType(LegalScreen), findsOneWidget);
+    expect(find.text('ON YOUR DEVICE'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('DELETING YOUR DATA'), 200,
+        scrollable: find.byType(Scrollable).last);
+    expect(find.text('DELETING YOUR DATA'), findsOneWidget);
+    await tester.tap(find.text('DONE'));
+    await _frames(tester);
+    await tapRow(tester, 'TERMS OF USE');
+    expect(find.text('FAIR PLAY'), findsOneWidget);
+    await _back(tester);
+    expect(find.byType(BmSettingsScreen), findsOneWidget);
+  });
+
+  testWidgets('settings → VIP & restore purchases opens the VIP screen',
+      (tester) async {
+    await openSettings(tester);
+    await tapRow(tester, 'VIP & RESTORE PURCHASES');
+    expect(find.byType(VipMembershipScreen), findsOneWidget);
+  });
+
+  testWidgets('settings → erase device data needs DELETE typed, then erases',
+      (tester) async {
+    await PlayerProfileStore.setName('Nova');
+    await PlayerProfileStore.recordRace(
+        placing: 1, correctAnswers: 5, answeredQuestions: 6);
+    await openSettings(tester);
+    await tapRow(tester, 'ERASE DATA ON THIS DEVICE');
+    expect(find.text('ERASE DEVICE DATA?'), findsOneWidget);
+
+    // Not confirmed yet: the delete button stays disabled.
+    await tester.tap(find.text('DELETE'));
+    await _frames(tester, 2);
+    expect(find.text('ERASE DEVICE DATA?'), findsOneWidget);
+
+    await tester.enterText(
+        find.byKey(const ValueKey('delete-confirm-field')), 'delete');
+    await tester.pump();
+    await tester.tap(find.text('DELETE'));
+    await _frames(tester);
+    expect(find.text('Device data erased.'), findsOneWidget);
+    expect(PlayerProfileStore.current.value.name, 'Player');
+    expect(PlayerProfileStore.current.value.races, 0);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getKeys(), isEmpty);
   });
 }

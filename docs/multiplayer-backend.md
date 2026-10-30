@@ -43,8 +43,8 @@ A branch of that project would copy the other app's schema.
 ## Setup (needs your accounts)
 
 1. **Create a dedicated project** at supabase.com (e.g. "buzz-masters").
-2. **Apply migrations**, in order: `supabase/migrations/20261029000100_monetisation.sql`,
-   then `20261030000100_multiplayer.sql` (SQL editor, or `supabase db push`).
+2. **Apply migrations** in filename order (all four files in
+   `supabase/migrations`), via the SQL editor or `supabase db push`.
 3. **Authentication → Providers → Anonymous sign-ins: enable.**
    **Authentication → Settings → Allow manual linking: enable** (for
    guest → Apple/Google/email upgrades).
@@ -75,7 +75,29 @@ cd supabase/tests && npm install && npm test   # migrations on real Postgres 16 
 flutter test                                   # client, incl. online journeys
 ```
 
-## Security finding in the earlier monetisation migration (not yet applied)
+## Edge Functions (purchases, ads, account deletion)
+
+| Function | Called by | Verifies | JWT |
+|---|---|---|---|
+| `revenuecat-webhook` | RevenueCat | `Authorization` = `REVENUECAT_WEBHOOK_SECRET` (constant-time) | `--no-verify-jwt` |
+| `revenuecat-sync` | the app after purchase/restore | the player's JWT; asks RevenueCat with `REVENUECAT_SECRET_API_KEY` | default |
+| `admob-ssv` | Google AdMob | ECDSA signature against Google's published keys | `--no-verify-jwt` |
+| `delete-account` | the app | the player's JWT, then purges and deletes the auth user | default |
+
+```sh
+supabase functions deploy revenuecat-webhook --no-verify-jwt
+supabase functions deploy admob-ssv --no-verify-jwt
+supabase functions deploy revenuecat-sync
+supabase functions deploy delete-account
+supabase secrets set REVENUECAT_WEBHOOK_SECRET=… REVENUECAT_SECRET_API_KEY=… \
+  AD_REWARD_COINS=50 AD_REWARD_MAX_PER_DAY=5
+```
+
+Their logic lives in `supabase/functions/_shared/*.ts` and is tested in
+`supabase/tests/functions.test.mjs` (including a real ECDSA signature in
+Google's format and webhook → Postgres → VIP end to end).
+
+## Security finding in the earlier monetisation migration — FIXED
 
 `monetisation_grant_ad_reward(p_account_id, …, p_signature_valid, …)` and
 `monetisation_record_purchase(p_account_id, …)` are `SECURITY DEFINER` and
@@ -85,9 +107,10 @@ the caller's claim that an advert reward or purchase is genuine. As written,
 those two calls server-side: a RevenueCat webhook and AdMob server-side
 reward verification, implemented as Edge Functions using the service role.
 Then revoke client execute and add `p_account_id = auth.uid()::text` checks
-to the remaining client RPCs. Both webhooks need your RevenueCat webhook
-secret and AdMob SSV configuration. Do not enable real purchases or rewards
-before this is done.
+to the remaining client RPCs. **Fixed in `20261030000200_monetisation_security.sql`** and proven on
+Postgres: `monetisation.test.mjs` first reproduces the exploit against the
+original migration, then shows it closed. The same migration fixes the bundle
+grant loop, which failed every bundle purchase (`column "g" does not exist`).
 
 The client side was aligned in this change: with a server configured, the
 monetisation account id is now the signed-in Supabase user, which the RLS

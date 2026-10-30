@@ -6,6 +6,7 @@ import '../design/bm_theme.dart';
 import '../online/join_game_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
 
+import '../backend/account_actions.dart';
 import '../backend/bm_supabase.dart';
 import '../online/online_lobby_screen.dart';
 import '../online/online_race_service.dart';
@@ -232,40 +233,52 @@ class _BmWelcomeScreenState extends State<BmWelcomeScreen>
     return BmPanel(
       color: BmColors.cyan,
       padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              gradient: BmGradients.cyan,
-              boxShadow: bmGlow(BmColors.cyan, blur: 14, opacity: 0.5),
-            ),
-            child: const Icon(Icons.groups_rounded, color: BmColors.deep),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('JOIN GAME', style: BmText.display(17)),
-                Text('Race friends with a 6-digit code',
-                    style: BmText.body(11.5, color: BmColors.muted)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          BmButton(
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final label = Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  gradient: BmGradients.cyan,
+                  boxShadow: bmGlow(BmColors.cyan, blur: 14, opacity: 0.5),
+                ),
+                child: const Icon(Icons.groups_rounded, color: BmColors.deep),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('JOIN GAME', style: BmText.display(17)),
+                    Text('Race friends with a 6-digit code',
+                        style: BmText.body(11.5, color: BmColors.muted)),
+                  ],
+                ),
+              ),
+            ],
+          );
+          final narrow = box.maxWidth < 320;
+          final button = BmButton(
             key: const ValueKey('welcome-get-started'),
             label: 'GET STARTED',
             style: BmButtonStyle.cyan,
             height: 40,
             fontSize: 12,
-            expand: false,
+            expand: narrow,
             onPressed: () => _open(const JoinGameScreen()),
-          ),
-        ],
+          );
+          // Small phones: the button goes under the text instead of beside it.
+          return narrow
+              ? Column(children: [label, const SizedBox(height: 10), button])
+              : Row(children: [
+                  Expanded(child: label),
+                  const SizedBox(width: 8),
+                  button,
+                ]);
+        },
       ),
     );
   }
@@ -375,68 +388,10 @@ class _BmWelcomeScreenState extends State<BmWelcomeScreen>
     );
   }
 
-  void _accountNotice(String provider) {
-    ScaffoldMessenger.of(context).showSnackBar(_snack(
-      '$provider is not available yet: Buzz Masters accounts need the game '
-      'server, which this build is not connected to. You can keep playing as '
-      'a guest.',
-    ));
-  }
+  Future<void> _oauth(OAuthProvider provider, String name) =>
+      AccountActions.oauth(context, provider, name);
 
-  Future<void> _oauth(OAuthProvider provider, String name) async {
-    if (!BmAuth.available) return _accountNotice('Sign in with $name');
-    final outcome = await BmAuth.signInWith(provider);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(_snack(switch (outcome) {
-      BmAuthOutcome.redirected => 'Continue signing in with $name…',
-      _ => 'Sign in with $name failed. It must be enabled for this Buzz '
-          'Masters project in the Supabase dashboard.',
-    }));
-  }
-
-  Future<void> _email() async {
-    if (!BmAuth.available) return _accountNotice('Email sign-in');
-    final controller = TextEditingController();
-    final email = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: BmColors.panel,
-        title: Text('SIGN IN WITH EMAIL', style: BmText.display(18)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.emailAddress,
-          style: BmText.title(15),
-          decoration: const InputDecoration(hintText: 'you@example.com'),
-          onSubmitted: (v) => Navigator.of(context).pop(v),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('CANCEL', style: BmText.label(11)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: Text('SEND LINK',
-                style: BmText.label(11, color: BmColors.gold)),
-          ),
-        ],
-      ),
-    );
-    final address = email?.trim() ?? '';
-    if (address.isEmpty || !mounted) return;
-    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(address)) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(_snack('That does not look like an email address.'));
-      return;
-    }
-    final outcome = await BmAuth.signInWithEmail(address);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(_snack(
-        outcome == BmAuthOutcome.emailSent
-            ? 'Check $address for your sign-in link.'
-            : 'Could not send the sign-in link. Please try again.'));
-  }
+  Future<void> _email() => AccountActions.email(context);
 
   SnackBar _snack(String text) => SnackBar(
         behavior: SnackBarBehavior.floating,

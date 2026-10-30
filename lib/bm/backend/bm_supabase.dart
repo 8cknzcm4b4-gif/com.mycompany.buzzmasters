@@ -167,6 +167,27 @@ abstract final class BmAuth {
     }
   }
 
+  /// Deletes the player's account and server data (delete-account Edge
+  /// Function), then signs out. Returns null on success, else a message.
+  static Future<String?> deleteAccount() async {
+    if (!available) return 'Accounts are not connected in this build.';
+    if (BmSupabase.client.auth.currentSession == null) {
+      return 'There is no account signed in on this device.';
+    }
+    try {
+      final res = await BmSupabase.client.functions.invoke('delete-account');
+      final data = res.data;
+      if (data is! Map || data['ok'] != true) {
+        return 'The server could not delete the account. Please try again.';
+      }
+    } on Object catch (e) {
+      lastError = '$e';
+      return 'Could not reach the Buzz Masters server. Please try again.';
+    }
+    await signOut();
+    return null;
+  }
+
   static Future<void> signOut() async {
     if (!available) return;
     try {
