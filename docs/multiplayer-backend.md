@@ -4,11 +4,17 @@
 
 | Piece | State | Evidence |
 |---|---|---|
-| Server rules (rooms, 6 seats, server-judged answers, timers, danger zone, results) | **Built and tested on PostgreSQL 16** | `supabase/tests` — 14/14 pass |
-| Friends, invites and the global leaderboard (server) | **Built and tested on PostgreSQL 16** | same suite |
-| Flutter client (lobby, live race, friends, leaderboard, resume, sign-in) | **Built and tested** | `flutter test` — 166/166 pass |
-| Running against a real Buzz Masters Supabase project | **Blocked — no project exists** | see below |
+| Server rules (rooms, 6 seats, server-judged answers, timers, danger zone, results) | **Built and tested on PostgreSQL 16** | `supabase/tests` |
+| Friends, invites, blocking, reports, question moderation | **Built and tested on PostgreSQL 16** | `community.test.mjs` |
+| Readiness, public lobbies / Quick Race, question rotation | **Built and tested on PostgreSQL 16** | `community.test.mjs` |
+| All-time, monthly and weekly rankings; race history; notifications | **Built and tested on PostgreSQL 16** | `community.test.mjs` |
+| Rate limits (lobbies, joins, friend requests, invites, reports) | **Built and tested on PostgreSQL 16** | `community.test.mjs` |
+| Realtime room signals (RLS: members only) | **Built; SQL side tested** — the Supabase Realtime server itself is not available offline | `community.test.mjs` |
+| Flutter client (lobby, ready-up, Quick Race, live race, report question, friends with block/report, ranking periods) | **Built and tested** against an in-memory server with the same rules | `flutter test` |
+| Running against a real Buzz Masters Supabase project | **Blocked — the Supabase CLI is not logged in and the connector here is bound to another app** | see below |
 | Apple / Google sign-in | **Code ready; blocked on credentials** | see below |
+
+All migrations run in order in every suite (`npm test`: 39 tests).
 
 ### Why it is not live yet
 
@@ -42,22 +48,31 @@ A branch of that project would copy the other app's schema.
 
 ## Setup (needs your accounts)
 
-1. **Create a dedicated project** at supabase.com (e.g. "buzz-masters").
-2. **Apply migrations** in filename order (all four files in
-   `supabase/migrations`), via the SQL editor or `supabase db push`.
-3. **Authentication → Providers → Anonymous sign-ins: enable.**
-   **Authentication → Settings → Allow manual linking: enable** (for
-   guest → Apple/Google/email upgrades).
-4. **Redirect URLs** (Authentication → URL Configuration):
-   add `buzzmasters://buzzmasters.com/login-callback` (already registered
-   in `ios/Runner/Info.plist` and `AndroidManifest.xml`) and your web URL.
-5. **Apple:** Apple Developer → an App ID with "Sign in with Apple", a
+1. **Create a dedicated project** in the BUZZ MASTERS organisation
+   (e.g. "buzz-masters", London region).
+2. **Log in and deploy** (one guarded script: it refuses the other app's
+   project, runs the tests, shows the pending migrations and asks before
+   applying, pushes the auth settings in `supabase/config.toml`, and
+   deploys the four Edge Functions):
+
+   ```sh
+   npx supabase@2.54.11 login
+   tool/supabase/deploy.sh <project-ref>
+   ```
+
+   `supabase/config.toml` enables anonymous sign-ins and manual linking
+   (guest → Apple/Google/email upgrades) and sets the redirect URL
+   `buzzmasters://buzzmasters.com/login-callback` (already registered in
+   `ios/Runner/Info.plist` and `AndroidManifest.xml`). Add your web URL too
+   if you host the web build.
+3. Run **Advisors → Security / Performance** in the dashboard and review.
+4. **Apple:** Apple Developer → an App ID with "Sign in with Apple", a
    Services ID, and a key. Enter Team ID, Services ID, Key ID and the .p8
    key in Supabase → Providers → Apple.
-6. **Google:** Google Cloud → an OAuth client (Web), with the Supabase
+5. **Google:** Google Cloud → an OAuth client (Web), with the Supabase
    callback URL as an authorised redirect. Enter the client ID and secret in
    Supabase → Providers → Google.
-7. **Build with the project keys** (the public publishable key only):
+6. **Build with the project keys** (the public publishable key only):
 
    ```sh
    flutter run -d chrome \
@@ -74,6 +89,38 @@ A branch of that project would copy the other app's schema.
 cd supabase/tests && npm install && npm test   # migrations on real Postgres 16 (PGlite)
 flutter test                                   # client, incl. online journeys
 ```
+
+## Community and moderation (20261030000400)
+
+| RPC | What it does | Limits |
+|---|---|---|
+| `bm_create_room(p_public)` / `bm_create_room()` | private by default; public lobbies are listed for Quick Race | 20 per hour |
+| `bm_join_room(code)` | refuses a lobby containing someone who blocked you, or whom you blocked | 60 per 10 min |
+| `bm_quick_join()` | resumes your live room, else the fullest open public lobby without blocked players, else opens one | — |
+| `bm_set_ready(room, ready)` | lobby readiness; the host counts as ready; `all_ready` in the state | lobby only |
+| `bm_block_player` / `bm_unblock_player` / `bm_blocked_players` | blocking ends the friendship and pending invites; friend requests to a blocker look like an unknown code | — |
+| `bm_report_player(target, reason, details, room)` | `offensive_name`, `cheating`, `harassment`, `other`; one open report per pair | 10 reports per day |
+| `bm_report_question(room, index, reason, details)` | by question number in a race you are in; question ids never reach clients; 3 reporters flag it `needs_review` | same daily cap |
+| `bm_leaderboard_period('all'\|'month'\|'week', limit)` | rankings for the UTC period (weeks start Monday) | — |
+| `bm_race_history(limit)`, `bm_notifications(limit)`, `bm_mark_notifications_read()` | your own results and notifications (friend requests, acceptances, invites, results) | 30-day retention |
+
+**Question rotation:** a race takes the questions its racers have seen least
+in the last 14 days. The bank now has 60 questions, so two races in a row
+share none.
+
+**Realtime:** `race_room_signals` (one row per room, a version number) and
+`player_notifications` are in the `supabase_realtime` publication. RLS lets
+only room members / the owner read them. The app subscribes and refetches the
+server-built state on each change; polling stays as the fallback and drives
+the timers. Polls only touch `last_seen`, which deliberately does **not**
+signal, or every client would refetch in a loop (tested).
+
+**Account deletion** removes all of the above through `ON DELETE CASCADE`
+(tested).
+
+**Not stored on the server:** avatars or profile images (the app uses a
+racing colour, so no storage bucket is needed) and achievements, which the
+app derives on the device from the player's own stats.
 
 ## Edge Functions (purchases, ads, account deletion)
 

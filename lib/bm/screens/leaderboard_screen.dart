@@ -29,9 +29,65 @@ class LeaderboardScreen extends StatefulWidget {
 
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
   late Future<GhostTrack?> _load = _fetch();
+  LeaderboardPeriod _period = LeaderboardPeriod.allTime;
   late Future<OnlineResult<List<LeaderboardRow>>> _globalLoad =
-      OnlineRace.service.leaderboard();
+      OnlineRace.service.leaderboard(period: _period);
   int _tab = 0;
+
+  void _loadPeriod(LeaderboardPeriod period) {
+    final next = OnlineRace.service.leaderboard(period: period);
+    setState(() {
+      _period = period;
+      _globalLoad = next;
+    });
+  }
+
+  Widget _periods() {
+    const labels = {
+      LeaderboardPeriod.allTime: 'ALL TIME',
+      LeaderboardPeriod.month: 'THIS MONTH',
+      LeaderboardPeriod.week: 'THIS WEEK',
+    };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          for (final e in labels.entries)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: GestureDetector(
+                  key: ValueKey('lb-period-${e.key.wire}'),
+                  onTap: () => _loadPeriod(e.key),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: _period == e.key
+                          ? BmColors.cyan.withValues(alpha: 0.18)
+                          : Colors.transparent,
+                      border: Border.all(
+                          color: _period == e.key
+                              ? BmColors.cyan
+                              : BmColors.panelEdge),
+                    ),
+                    child: FittedBox(
+                      child: Text(e.value,
+                          style: BmText.label(9.5,
+                              color: _period == e.key
+                                  ? Colors.white
+                                  : BmColors.muted)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   Future<GhostTrack?> _fetch() async {
     await PlayerProfileStore.ensureLoaded();
@@ -111,6 +167,15 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         ),
       );
     }
+    return Column(
+      children: [
+        _periods(),
+        Expanded(child: _globalList()),
+      ],
+    );
+  }
+
+  Widget _globalList() {
     return FutureBuilder<OnlineResult<List<LeaderboardRow>>>(
       future: _globalLoad,
       builder: (context, snap) {
@@ -129,12 +194,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             action: BmButton(
               label: 'TRY AGAIN',
               height: 46,
-              onPressed: () {
-                final next = OnlineRace.service.leaderboard();
-                setState(() {
-                  _globalLoad = next;
-                });
-              },
+              onPressed: () => _loadPeriod(_period),
             ),
           );
         }
@@ -143,7 +203,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             icon: Icons.leaderboard_rounded,
             color: BmColors.cyan,
             title: 'NO RANKINGS YET',
-            body: 'Finish an online race to appear on the leaderboard.',
+            body: _period == LeaderboardPeriod.allTime
+                ? 'Finish an online race to appear on the leaderboard.'
+                : 'No online races finished in this period yet.',
           );
         }
         return ListView(

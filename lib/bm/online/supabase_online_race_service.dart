@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../backend/bm_supabase.dart';
@@ -6,8 +8,9 @@ import 'online_race_service.dart';
 
 /// [OnlineRaceService] backed by the Buzz Masters Supabase project.
 ///
-/// Every call is one RPC from supabase/migrations/20261030000100_multiplayer
-/// .sql; the server judges answers, owns the clock and ranks the race.
+/// Every call is one RPC from supabase/migrations (20261030000100_multiplayer
+/// and 20261030000400_community_and_moderation); the server judges answers,
+/// owns the clock and ranks the race. Room changes arrive over Realtime.
 class SupabaseOnlineRaceService implements OnlineRaceService {
   SupabaseOnlineRaceService();
 
@@ -115,9 +118,65 @@ class SupabaseOnlineRaceService implements OnlineRaceService {
       _call('bm_leave_room', {'p_room': roomId}, (_) => true);
 
   @override
-  Future<OnlineResult<List<LeaderboardRow>>> leaderboard() => _call(
-        'bm_leaderboard',
-        {'p_limit': 50},
+  Future<OnlineResult<RoomState>> quickJoin() =>
+      _call('bm_quick_join', const {}, RoomState.fromJson);
+
+  @override
+  Future<OnlineResult<RoomState>> setReady(String roomId, bool ready) => _call(
+      'bm_set_ready', {'p_room': roomId, 'p_ready': ready}, RoomState.fromJson);
+
+  /// Postgres changes on race_room_signals; RLS lets only members see them.
+  @override
+  Stream<void> roomChanges(String roomId) {
+    if (!BmSupabase.isReady) return const Stream.empty();
+    late final StreamController<void> controller;
+    RealtimeChannel? channel;
+    controller = StreamController<void>(
+      onListen: () {
+        channel = BmSupabase.client
+            .channel('bm-room-$roomId')
+            .onPostgresChanges(
+              event: PostgresChangeEvent.all,
+              schema: 'public',
+              table: 'race_room_signals',
+              filter: PostgresChangeFilter(
+                type: PostgresChangeFilterType.eq,
+                column: 'room_id',
+                value: roomId,
+              ),
+              callback: (_) {
+                if (!controller.isClosed) controller.add(null);
+              },
+            )
+            .subscribe();
+      },
+      onCancel: () async {
+        final c = channel;
+        channel = null;
+        if (c != null) await BmSupabase.client.removeChannel(c);
+      },
+    );
+    return controller.stream;
+  }
+
+  @override
+  Future<OnlineResult<bool>> reportQuestion(
+          String roomId, int questionIndex, QuestionReportReason reason) =>
+      _call(
+          'bm_report_question',
+          {
+            'p_room': roomId,
+            'p_question': questionIndex,
+            'p_reason': reason.wire,
+          },
+          (_) => true);
+
+  @override
+  Future<OnlineResult<List<LeaderboardRow>>> leaderboard(
+          {LeaderboardPeriod period = LeaderboardPeriod.allTime}) =>
+      _call(
+        'bm_leaderboard_period',
+        {'p_period': period.wire, 'p_limit': 50},
         (j) => [
           for (final r in (j['rows'] as List?) ?? const [])
             LeaderboardRow.fromJson((r as Map).cast<String, dynamic>()),
@@ -146,5 +205,23 @@ class SupabaseOnlineRaceService implements OnlineRaceService {
   @override
   Future<OnlineResult<bool>> inviteFriend(String roomId, String friendId) =>
       _call('bm_invite_friend', {'p_room': roomId, 'p_friend': friendId},
+          (_) => true);
+
+  @override
+  Future<OnlineResult<bool>> blockPlayer(String playerId) =>
+      _call('bm_block_player', {'p_player': playerId}, (_) => true);
+
+  @override
+  Future<OnlineResult<bool>> reportPlayer(
+          String playerId, PlayerReportReason reason,
+          {String? roomId}) =>
+      _call(
+          'bm_report_player',
+          {
+            'p_target': playerId,
+            'p_reason': reason.wire,
+            'p_details': null,
+            'p_room': roomId,
+          },
           (_) => true);
 }

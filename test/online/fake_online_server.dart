@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:buzz_masters/bm/game/practice_match.dart';
@@ -24,7 +25,18 @@ class FakeOnlineServer {
   final _links = <String, String>{}; // 'req>addr' -> status
   final _invites = <String, Set<String>>{}; // roomId -> invitees
   final _results = <String, List<Map<String, Object?>>>{};
+  final _blocks = <String>{}; // 'blocker>blocked'
+  final _changes = StreamController<String>.broadcast(); // room ids
+
+  /// Reports received, as (reporter, target or 'q<index>@room', reason).
+  final reports = <(String, String, String)>[];
   int _seq = 0;
+
+  bool _blocked(String a, String b) =>
+      _blocks.contains('$a>$b') || _blocks.contains('$b>$a');
+
+  /// What Realtime would broadcast: a change to [roomId].
+  void signal(String roomId) => _changes.add(roomId);
 
   /// A client signed in as [id], racing as [name].
   FakeOnlineClient client(String id, String name, {int color = 1}) {
@@ -157,6 +169,9 @@ class FakeOnlineServer {
       'code': r.code,
       'status': r.status,
       'is_host': r.host == me,
+      'is_public': r.isPublic,
+      'all_ready': r.players.entries
+          .every((e) => e.key == r.host || e.value.left || e.value.ready),
       'countdown_ms': r.status == 'countdown' ? max(0, r.startsAt - now) : null,
       'question_number': r.currentQ + 1,
       'questions_resolved': r.resolved,
@@ -190,6 +205,7 @@ class FakeOnlineServer {
                 e.value.progress <= cfg.dangerZoneMax,
             'connected': !e.value.left,
             'left': e.value.left,
+            'ready': e.value.ready || e.key == r.host,
             'is_me': e.key == me,
             'is_host': e.key == r.host,
           },
@@ -236,6 +252,7 @@ class _Player {
   int correct = 0;
   int answered = 0;
   bool left = false;
+  bool ready = false;
 }
 
 class _Room {
@@ -244,6 +261,7 @@ class _Room {
   final String code;
   String host;
   final int expiresAt;
+  bool isPublic = false;
   String status = 'lobby';
   int startsAt = 0;
   List<int> questionOrder = const [];
@@ -278,7 +296,17 @@ class FakeOnlineClient implements OnlineRaceService {
 
   Future<OnlineResult<T>> _guard<T>(OnlineResult<T> Function() body) async {
     if (offline) return const OnlineResult.fail(OnlineError.offline);
-    return body();
+    // Like the server's signal trigger: only rooms that actually changed
+    // are signalled (polling alone never signals).
+    String snapshot(_Room r) => '${server._json(r, '')}';
+    final before = {
+      for (final r in server.rooms.values) r.id: snapshot(r),
+    };
+    final result = body();
+    for (final r in server.rooms.values) {
+      if (before[r.id] != snapshot(r)) server.signal(r.id);
+    }
+    return result;
   }
 
   @override
@@ -310,6 +338,10 @@ class FakeOnlineClient implements OnlineRaceService {
         if (r.players.containsKey(me) && !r.players[me]!.left) return _state(r);
         if (r.status != 'lobby') {
           return const OnlineResult.fail('already_started');
+        }
+        if (r.players.entries
+            .any((e) => !e.value.left && server._blocked(me, e.key))) {
+          return const OnlineResult.fail('blocked');
         }
         final taken = r.players.values.map((p) => p.seat).toSet();
         final seat = [for (var s = 1; s <= 6; s++) s]
@@ -440,7 +472,86 @@ class FakeOnlineClient implements OnlineRaceService {
       });
 
   @override
-  Future<OnlineResult<List<LeaderboardRow>>> leaderboard() => _guard(() {
+  Future<OnlineResult<RoomState>> quickJoin() async {
+    final live = await liveRoom();
+    if (live.ok) return live;
+    final open = server.rooms.values
+        .where((r) =>
+            r.isPublic &&
+            r.status == 'lobby' &&
+            r.players.length < 6 &&
+            !r.players.keys.any((p) => server._blocked(me, p)))
+        .toList()
+      ..sort((a, b) => b.players.length.compareTo(a.players.length));
+    if (open.isNotEmpty) return join(open.first.code);
+    final created = await createRoom();
+    if (!created.ok) return created;
+    server.rooms[created.value!.roomId]!.isPublic = true;
+    return roomState(created.value!.roomId);
+  }
+
+  @override
+  Future<OnlineResult<RoomState>> setReady(String roomId, bool ready) =>
+      _guard(() {
+        final r = server.rooms[roomId];
+        final p = r?.players[me];
+        if (r == null || p == null) {
+          return const OnlineResult.fail('not_member');
+        }
+        if (r.status != 'lobby') {
+          return const OnlineResult.fail('already_started');
+        }
+        p.ready = ready;
+        return _state(r);
+      });
+
+  @override
+  Stream<void> roomChanges(String roomId) =>
+      server._changes.stream.where((id) => id == roomId);
+
+  @override
+  Future<OnlineResult<bool>> reportQuestion(
+          String roomId, int questionIndex, QuestionReportReason reason) =>
+      _guard(() {
+        final r = server.rooms[roomId];
+        if (r == null || !r.players.containsKey(me)) {
+          return const OnlineResult.fail('not_member');
+        }
+        if (questionIndex < 0 || questionIndex > r.currentQ) {
+          return const OnlineResult.fail('wrong_question');
+        }
+        server.reports.add((me, 'q$questionIndex@$roomId', reason.wire));
+        return const OnlineResult.ok(true);
+      });
+
+  @override
+  Future<OnlineResult<bool>> blockPlayer(String playerId) => _guard(() {
+        if (playerId == me) return const OnlineResult.fail('self');
+        server._blocks.add('$me>$playerId');
+        server._links
+          ..remove('$me>$playerId')
+          ..remove('$playerId>$me');
+        return const OnlineResult.ok(true);
+      });
+
+  @override
+  Future<OnlineResult<bool>> reportPlayer(
+          String playerId, PlayerReportReason reason,
+          {String? roomId}) =>
+      _guard(() {
+        if (playerId == me) return const OnlineResult.fail('self');
+        server.reports.add((me, playerId, reason.wire));
+        return const OnlineResult.ok(true);
+      });
+
+  /// Periods requested, so tests can check the screen asked for the right one.
+  final periodsAsked = <LeaderboardPeriod>[];
+
+  @override
+  Future<OnlineResult<List<LeaderboardRow>>> leaderboard(
+          {LeaderboardPeriod period = LeaderboardPeriod.allTime}) =>
+      _guard(() {
+        periodsAsked.add(period);
         final stats = <String, List<int>>{};
         for (final rows in server._results.values) {
           for (final row in rows) {
@@ -520,6 +631,9 @@ class FakeOnlineClient implements OnlineRaceService {
             .firstOrNull;
         if (target == null) return const OnlineResult.fail('not_found');
         if (target == me) return const OnlineResult.fail('self');
+        if (server._blocked(me, target)) {
+          return const OnlineResult.fail('not_found');
+        }
         if (server._links['$target>$me'] == 'pending') {
           server._links['$target>$me'] = 'accepted';
           return const OnlineResult.ok('accepted');

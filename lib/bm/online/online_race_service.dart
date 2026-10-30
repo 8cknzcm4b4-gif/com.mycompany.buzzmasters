@@ -40,6 +40,11 @@ abstract final class OnlineError {
         'not_friends' => 'You can only invite friends.',
         'duplicate' => 'You already answered this question.',
         'too_late' => 'Too late — the question closed.',
+        'rate_limited' => 'Slow down — try again in a little while.',
+        'blocked' => 'You cannot join that race.',
+        'invalid_reason' => 'Choose a reason for the report.',
+        'wrong_question' => 'That question cannot be reported now.',
+        'invalid_period' => 'That ranking period is not available.',
         signInFailed =>
           'Could not start an online session. Anonymous sign-ins may be '
               'disabled for this Buzz Masters project.',
@@ -90,6 +95,7 @@ class RoomPlayer {
     this.left = false,
     this.isMe = false,
     this.isHost = false,
+    this.ready = false,
   });
 
   factory RoomPlayer.fromJson(Map<String, dynamic> j) => RoomPlayer(
@@ -107,6 +113,7 @@ class RoomPlayer {
         left: j['left'] == true,
         isMe: j['is_me'] == true,
         isHost: j['is_host'] == true,
+        ready: j['ready'] == true,
       );
 
   final String id;
@@ -123,6 +130,9 @@ class RoomPlayer {
   final bool left;
   final bool isMe;
   final bool isHost;
+
+  /// Ready in the lobby (the host always counts as ready).
+  final bool ready;
 }
 
 @immutable
@@ -220,6 +230,8 @@ class RoomState {
     required this.status,
     required this.players,
     this.isHost = false,
+    this.isPublic = false,
+    this.allReady = false,
     this.countdownMs,
     this.questionNumber = 0,
     this.questionsResolved = 0,
@@ -246,6 +258,8 @@ class RoomState {
       status: RoomStatus.values.firstWhere((s) => s.name == j['status'],
           orElse: () => RoomStatus.abandoned),
       isHost: j['is_host'] == true,
+      isPublic: j['is_public'] == true,
+      allReady: j['all_ready'] == true,
       countdownMs: _intOrNull(j['countdown_ms']),
       questionNumber: _int(j['question_number']),
       questionsResolved: _int(j['questions_resolved']),
@@ -279,6 +293,10 @@ class RoomState {
   final RoomStatus status;
   final List<RoomPlayer> players;
   final bool isHost;
+
+  /// Listed for Quick Race matchmaking (otherwise joinable by code only).
+  final bool isPublic;
+  final bool allReady;
   final int? countdownMs;
   final int questionNumber;
   final int questionsResolved;
@@ -437,6 +455,42 @@ class FriendsSnapshot {
   final List<RaceInvite> invites;
 }
 
+/// Ranking windows for the global leaderboard (UTC weeks start on Monday).
+enum LeaderboardPeriod {
+  allTime('all'),
+  month('month'),
+  week('week');
+
+  const LeaderboardPeriod(this.wire);
+
+  /// The value the server expects.
+  final String wire;
+}
+
+/// Why a player is being reported (server: bm_report_player).
+enum PlayerReportReason {
+  offensiveName('offensive_name', 'Offensive name'),
+  cheating('cheating', 'Cheating'),
+  harassment('harassment', 'Harassment'),
+  other('other', 'Something else');
+
+  const PlayerReportReason(this.wire, this.label);
+  final String wire;
+  final String label;
+}
+
+/// Why a question is being reported (server: bm_report_question).
+enum QuestionReportReason {
+  wrongAnswer('wrong_answer', 'The answer is wrong'),
+  unclear('unclear', 'The question is unclear'),
+  offensive('offensive', 'It is offensive'),
+  other('other', 'Something else');
+
+  const QuestionReportReason(this.wire, this.label);
+  final String wire;
+  final String label;
+}
+
 /// The online game API. The real implementation is
 /// [SupabaseOnlineRaceService]; every rule is enforced by the server, so
 /// nothing here may decide a lobby exists, an answer is right or who won.
@@ -454,12 +508,29 @@ abstract class OnlineRaceService {
       String roomId, int question, int option);
   Future<OnlineResult<bool>> leave(String roomId);
 
-  Future<OnlineResult<List<LeaderboardRow>>> leaderboard();
+  /// Joins the fullest open public lobby, or opens a new public one.
+  Future<OnlineResult<RoomState>> quickJoin();
+  Future<OnlineResult<RoomState>> setReady(String roomId, bool ready);
+
+  /// Fires whenever the server changes the room (Realtime). Screens refetch
+  /// the state on each event and keep polling as a fallback for timers.
+  Stream<void> roomChanges(String roomId);
+
+  /// Reports the question at [questionIndex] of this race.
+  Future<OnlineResult<bool>> reportQuestion(
+      String roomId, int questionIndex, QuestionReportReason reason);
+
+  Future<OnlineResult<List<LeaderboardRow>>> leaderboard(
+      {LeaderboardPeriod period = LeaderboardPeriod.allTime});
   Future<OnlineResult<FriendsSnapshot>> friends();
   Future<OnlineResult<String>> sendFriendRequest(String code);
   Future<OnlineResult<bool>> respondToFriend(String friendId, bool accept);
   Future<OnlineResult<bool>> removeFriend(String friendId);
   Future<OnlineResult<bool>> inviteFriend(String roomId, String friendId);
+  Future<OnlineResult<bool>> blockPlayer(String playerId);
+  Future<OnlineResult<bool>> reportPlayer(
+      String playerId, PlayerReportReason reason,
+      {String? roomId});
 }
 
 /// The build has no Buzz Masters game server, so every online call reports
@@ -494,7 +565,20 @@ class UnconfiguredOnlineRaceService implements OnlineRaceService {
   Future<OnlineResult<bool>> leave(String roomId) async =>
       const OnlineResult.fail(_no);
   @override
-  Future<OnlineResult<List<LeaderboardRow>>> leaderboard() async =>
+  Future<OnlineResult<RoomState>> quickJoin() async =>
+      const OnlineResult.fail(_no);
+  @override
+  Future<OnlineResult<RoomState>> setReady(String roomId, bool ready) async =>
+      const OnlineResult.fail(_no);
+  @override
+  Stream<void> roomChanges(String roomId) => const Stream.empty();
+  @override
+  Future<OnlineResult<bool>> reportQuestion(String roomId, int questionIndex,
+          QuestionReportReason reason) async =>
+      const OnlineResult.fail(_no);
+  @override
+  Future<OnlineResult<List<LeaderboardRow>>> leaderboard(
+          {LeaderboardPeriod period = LeaderboardPeriod.allTime}) async =>
       const OnlineResult.fail(_no);
   @override
   Future<OnlineResult<FriendsSnapshot>> friends() async =>
@@ -512,6 +596,14 @@ class UnconfiguredOnlineRaceService implements OnlineRaceService {
   @override
   Future<OnlineResult<bool>> inviteFriend(
           String roomId, String friendId) async =>
+      const OnlineResult.fail(_no);
+  @override
+  Future<OnlineResult<bool>> blockPlayer(String playerId) async =>
+      const OnlineResult.fail(_no);
+  @override
+  Future<OnlineResult<bool>> reportPlayer(
+          String playerId, PlayerReportReason reason,
+          {String? roomId}) async =>
       const OnlineResult.fail(_no);
 }
 

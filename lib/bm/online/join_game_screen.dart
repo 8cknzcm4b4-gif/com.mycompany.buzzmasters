@@ -9,7 +9,8 @@ import '../widgets/studio_background.dart';
 import 'online_lobby_screen.dart';
 import 'online_race_service.dart';
 
-/// Join an online race by its six-digit code.
+/// Join an online race by its six-digit code, or Quick Race into a public
+/// lobby chosen by the server.
 ///
 /// Every code goes to [OnlineRace.service]; this screen never decides on its
 /// own that a lobby exists.
@@ -45,6 +46,24 @@ class _JoinGameScreenState extends State<JoinGameScreen> {
     });
     final result =
         await OnlineRace.service.join(RaceCode.normalise(_controller.text));
+    if (!mounted) return;
+    setState(() => _busy = false);
+    final room = result.value;
+    if (room == null) {
+      setState(() => _error = result.message);
+      return;
+    }
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(builder: (_) => onlineRoomScreen(room)),
+    );
+  }
+
+  Future<void> _quickRace() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final result = await OnlineRace.service.quickJoin();
     if (!mounted) return;
     setState(() => _busy = false);
     final room = result.value;
@@ -142,6 +161,19 @@ class _JoinGameScreenState extends State<JoinGameScreen> {
                     label: _busy ? 'CHECKING CODE…' : 'JOIN RACE',
                     icon: Icons.login_rounded,
                     onPressed: _busy ? null : _join,
+                  ),
+                  const SizedBox(height: 14),
+                  Text('NO CODE?',
+                      style: BmText.label(9, color: BmColors.muted)),
+                  const SizedBox(height: 8),
+                  BmButton(
+                    key: const ValueKey('join-quick'),
+                    label: 'QUICK RACE · PUBLIC LOBBY',
+                    icon: Icons.bolt_rounded,
+                    style: BmButtonStyle.violet,
+                    height: 48,
+                    fontSize: 13,
+                    onPressed: _busy || !configured ? null : _quickRace,
                   ),
                   if (!configured) ...[
                     const SizedBox(height: 22),

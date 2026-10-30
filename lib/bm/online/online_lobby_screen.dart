@@ -34,7 +34,9 @@ class OnlineLobbyScreen extends StatefulWidget {
 class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
   late RoomState _room = widget.initial;
   Timer? _poll;
+  StreamSubscription<void>? _changes;
   bool _busy = false;
+  bool _readyBusy = false;
   bool _fetching = false;
   bool _left = false;
   String? _problem;
@@ -43,12 +45,32 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
   void initState() {
     super.initState();
     _poll = Timer.periodic(widget.pollInterval, (_) => _refresh());
+    // Realtime: refetch as soon as the server changes the room; the poll
+    // stays as the fallback.
+    _changes = OnlineRace.service
+        .roomChanges(_room.roomId)
+        .listen((_) => unawaited(_refresh()));
   }
 
   @override
   void dispose() {
     _poll?.cancel();
+    unawaited(_changes?.cancel());
     super.dispose();
+  }
+
+  Future<void> _toggleReady() async {
+    final ready = !(_room.me?.ready ?? false);
+    setState(() => _readyBusy = true);
+    final result = await OnlineRace.service.setReady(_room.roomId, ready);
+    if (!mounted) return;
+    setState(() {
+      _readyBusy = false;
+      if (result.value != null) _room = result.value!;
+    });
+    if (!result.ok) {
+      ScaffoldMessenger.of(context).showSnackBar(_snack(result.message));
+    }
   }
 
   Future<void> _refresh() async {
@@ -127,6 +149,8 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
     final room = _room;
     final bySeat = {for (final p in room.players) p.seat: p};
     final canStart = room.isHost && room.players.length >= room.minPlayers;
+    final readyCount = room.players.where((p) => p.ready && !p.left).length;
+    final iAmReady = room.me?.ready ?? false;
     return PopScope(
       canPop: _left,
       onPopInvokedWithResult: (didPop, _) {
@@ -138,7 +162,8 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
           children: [
             ArenaHeader(
               title: 'RACE LOBBY',
-              subtitle: '${room.players.length} / ${room.maxSeats} RACERS',
+              subtitle: '${room.isPublic ? 'PUBLIC · ' : ''}'
+                  '${room.players.length} / ${room.maxSeats} RACERS',
               onBack: _leave,
             ),
             const SizedBox(height: 8),
@@ -177,34 +202,30 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
                 key: const ValueKey('online-start'),
                 label: _busy
                     ? 'STARTING…'
-                    : canStart
-                        ? 'START RACE'
-                        : 'NEED ${room.minPlayers} RACERS TO START',
+                    : !canStart
+                        ? 'NEED ${room.minPlayers} RACERS TO START'
+                        : room.allReady
+                            ? 'START RACE · ALL READY'
+                            : 'START RACE · $readyCount/${room.players.length} READY',
                 icon: Icons.sports_score_rounded,
                 height: 54,
                 onPressed: canStart && !_busy ? _start : null,
               )
             else
-              BmPanel(
-                color: BmColors.cyan,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                child: Row(
-                  children: [
-                    const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: BmColors.cyan),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                          'Waiting for ${room.hostName} to start the race…',
-                          style: BmText.body(13)),
-                    ),
-                  ],
-                ),
+              BmButton(
+                key: const ValueKey('lobby-ready'),
+                label: _readyBusy
+                    ? 'SAVING…'
+                    : iAmReady
+                        ? 'READY · WAITING FOR ${room.hostName.toUpperCase()}'
+                        : "TAP WHEN YOU'RE READY",
+                icon: iAmReady
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                style: iAmReady ? BmButtonStyle.outline : BmButtonStyle.gold,
+                height: 54,
+                fontSize: 13,
+                onPressed: _readyBusy ? null : _toggleReady,
               ),
           ],
         ),
@@ -280,17 +301,21 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
                   Text(
                     p.isHost
                         ? (p.isMe ? 'HOST · YOU' : 'HOST')
-                        : p.isMe
-                            ? 'YOU'
-                            : p.connected
-                                ? 'READY'
-                                : 'RECONNECTING',
+                        : !p.connected
+                            ? 'RECONNECTING'
+                            : '${p.isMe ? 'YOU · ' : ''}'
+                                '${p.ready ? 'READY' : 'NOT READY'}',
+                    key: ValueKey('seat-status-${p.seat}'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: BmText.label(7.5,
-                        color: p.isMe || p.isHost
+                        color: p.isHost
                             ? BmColors.gold
-                            : p.connected
-                                ? BmColors.green
-                                : BmColors.red),
+                            : !p.connected
+                                ? BmColors.red
+                                : p.ready
+                                    ? BmColors.green
+                                    : BmColors.muted),
                   ),
               ],
             ),

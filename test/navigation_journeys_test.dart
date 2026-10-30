@@ -101,7 +101,10 @@ void main() {
     expect(find.byType(OnlineLobbyScreen), findsOneWidget);
     expect(find.text('Sam'), findsOneWidget);
     expect(find.text('Nova'), findsOneWidget);
-    expect(find.text('Waiting for Sam to start the race…'), findsOneWidget);
+    // A guest is not ready until they say so; the host starts the race.
+    expect(find.text("TAP WHEN YOU'RE READY"), findsOneWidget);
+    expect(find.text('YOU · NOT READY'), findsOneWidget);
+    expect(find.text('HOST'), findsOneWidget);
 
     // Lobby → welcome without leaving: the server keeps the seat, so it
     // offers a resume.

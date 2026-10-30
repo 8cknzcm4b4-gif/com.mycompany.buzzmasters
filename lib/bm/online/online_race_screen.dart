@@ -15,6 +15,7 @@ import '../widgets/bm_panel.dart';
 import '../widgets/race_podium.dart';
 import '../widgets/studio_background.dart';
 import 'online_race_service.dart';
+import 'report_sheet.dart';
 
 /// A live online race. The server owns the clock, judges every answer and
 /// ranks the field; this screen polls its state, animates it, and sends the
@@ -39,6 +40,7 @@ class _OnlineRaceScreenState extends State<OnlineRaceScreen> {
   DateTime _fetchedAt = DateTime.now();
   Timer? _poll;
   Timer? _frame;
+  StreamSubscription<void>? _changes;
   bool _fetching = false;
   bool _reconnecting = false;
   bool _left = false;
@@ -59,6 +61,11 @@ class _OnlineRaceScreenState extends State<OnlineRaceScreen> {
     unawaited(BmMusic.stop());
     _apply(widget.initial);
     _poll = Timer.periodic(widget.pollInterval, (_) => _refresh());
+    // Realtime wakes the screen the moment anyone answers; polling still
+    // drives the timers.
+    _changes = OnlineRace.service
+        .roomChanges(_room.roomId)
+        .listen((_) => unawaited(_refresh()));
     _frame = Timer.periodic(const Duration(milliseconds: 150), (_) {
       if (mounted) setState(() {});
     });
@@ -68,6 +75,7 @@ class _OnlineRaceScreenState extends State<OnlineRaceScreen> {
   void dispose() {
     _poll?.cancel();
     _frame?.cancel();
+    unawaited(_changes?.cancel());
     unawaited(BmMusic.start());
     super.dispose();
   }
@@ -375,7 +383,17 @@ class _OnlineRaceScreenState extends State<OnlineRaceScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
+              BmIconButton(
+                key: const ValueKey('online-report-question'),
+                icon: Icons.flag_outlined,
+                color: BmColors.muted,
+                size: 34,
+                tooltip: 'Report question',
+                onPressed: () =>
+                    reportOnlineQuestion(context, room.roomId, q.index),
+              ),
+              const SizedBox(width: 4),
               TimerRing(
                   secondsLeft: leftMs / 1000,
                   total: room.windowMs / 1000,

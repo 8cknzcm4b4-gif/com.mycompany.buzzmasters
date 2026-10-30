@@ -81,9 +81,11 @@ class LegalScreen extends StatelessWidget {
           'ONLINE PLAY',
           'When online play is available, we store a player id, your racing '
               'name and colour, a friend code, the races you join, your '
-              'answers and results, your friends and race invitations, so '
-              'races can be judged fairly and rankings shown. Other racers '
-              'see your racing name and colour.',
+              'answers and results, your friends and race invitations, '
+              'players you block, reports you send, and in-app '
+              'notifications, so races can be judged fairly, rankings shown '
+              'and the community kept safe. Other racers see your racing '
+              'name and colour.',
         ),
         (
           'ACCOUNTS',

@@ -5,13 +5,13 @@
 //   cd supabase/tests && npm install && npm test
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 
-const migrations = [
-  '../migrations/20261029000100_monetisation.sql',
-  '../migrations/20261030000100_multiplayer.sql',
-].map((p) => readFileSync(new URL(p, import.meta.url), 'utf8'));
+// Every migration, in order, so later ones are proven not to break racing.
+const dir = new URL('../migrations/', import.meta.url);
+const migrations = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()
+  .map((f) => readFileSync(new URL(f, dir), 'utf8'));
 
 const db = new PGlite();
 const users = {};
@@ -55,6 +55,7 @@ before(async () => {
   await db.exec(`
     create role anon nologin;
     create role authenticated nologin;
+    create role service_role nologin bypassrls;
     create schema auth;
     create table auth.users (id uuid primary key);
     create function auth.uid() returns uuid language sql stable as
@@ -387,10 +388,15 @@ test('friends by code, requests, invites into a lobby', async () => {
 });
 
 test('the monetisation API keeps its grants', async () => {
+  // The multiplayer revokes are scoped to their own functions: the player's
+  // own-account monetisation RPCs stay callable, and wallet_balance stays
+  // server-only (20261030000200_monetisation_security.sql).
   await db.exec(`set request.jwt.claim.sub = '${users.p1}'; set role authenticated;`);
   try {
-    const res = await db.query('select public.wallet_balance($1) as b', [users.p1]);
-    assert.equal(Number(res.rows[0].b), 0);
+    const res = await db.query('select public.monetisation_entitlement($1) as e', [users.p1]);
+    assert.ok(res.rows[0].e);
+    await assert.rejects(db.query('select public.wallet_balance($1)', [users.p1]),
+      /permission denied/);
   } finally {
     await db.exec('reset role;');
   }

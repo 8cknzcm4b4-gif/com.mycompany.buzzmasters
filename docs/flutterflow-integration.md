@@ -5,7 +5,7 @@
 - **App / bundle ID:** `com.mycompany.buzzmasters`
   (Android `applicationId` + `namespace` and all manifests, iOS `PRODUCT_BUNDLE_IDENTIFIER`)
 - **GitHub repository:** https://github.com/8cknzcm4b4-gif/com.mycompany.buzzmasters
-- **Branch holding the work:** `main`
+- **Branch holding the work:** `dev`
 - **Race code location:** `lib/bm/race/` (FlutterFlow pages live in `lib/pages/`)
 
 ## API access diagnosed (2026-10-30)
@@ -31,18 +31,15 @@ compiles FlutterFlow's own project, which is not linked to this repository,
 so it shows those old pages. Build from this repository instead — see
 `docs/neon-arena-redesign.md`.
 
-## Verified state
+## Verified state (re-checked 2026-10-30)
 
-The FlutterFlow API is reachable, but rejects calls without credentials:
-
-```
-GET https://api.flutterflow.io/v2/projects/buzz-masters-9ci2h7
-401 Unauthorized
-```
-
-`FLUTTERFLOW_API_TOKEN`, `FLUTTERFLOW_TOKEN` are unset in this workspace,
-so the editor cannot be updated from here; GitHub access now works via the
-authenticated `gh` CLI and the source above has been pushed to `main`.
+With the saved CLI key, `POST https://api.flutterflow.io/v2/l/listProjects`
+returns 200 and lists "Buzz Masters" (`buzz-masters-9ci2h7`) alongside the
+owner's other projects (not touched). The API exposes project export only:
+there is no supported call to import code or change app settings. The
+export does not contain this repository's code, so the project is not fed
+from it; nothing was written to FlutterFlow, and a GitHub push does not reach
+it.
 
 ## What is required to finish
 
@@ -55,8 +52,8 @@ authenticated `gh` CLI and the source above has been pushed to `main`.
    shared `TreadmillLane`, `RaceCountdown`, `EliminationFlash` and
    `FinishConfetti` widgets and the `BmAudioSettings` helper.
 
-## Not integrated
+## Multiplayer
 
-- Multiplayer: `lib/bm/race/authority/` has the server engine, protocol and
-  client session, but no WebSocket transport or host, so it is not wired to the
-  lobby.
+Online racing runs on Supabase (`docs/multiplayer-backend.md`), not on the
+older in-app engine in `lib/bm/race/authority/`, which remains for offline
+tests only.

@@ -5,6 +5,7 @@ import '../design/bm_theme.dart';
 import '../online/join_game_screen.dart';
 import '../online/online_lobby_screen.dart';
 import '../online/online_race_service.dart';
+import '../online/report_sheet.dart';
 import '../widgets/bm_button.dart';
 import '../widgets/bm_panel.dart';
 import '../widgets/studio_background.dart';
@@ -251,15 +252,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 name: f.name,
                 sub: 'Friend',
                 color: BmColors.seatColors[f.color % 6],
-                trailing: IconButton(
-                  tooltip: 'Remove friend',
-                  onPressed: () async {
-                    await OnlineRace.service.removeFriend(f.id);
-                    if (mounted) _reload();
-                  },
-                  icon: const Icon(Icons.person_remove_rounded,
-                      color: BmColors.muted),
-                ),
+                trailing: _friendMenu(f),
               ),
             for (final f in data.outgoing)
               _row(
@@ -271,6 +264,76 @@ class _FriendsScreenState extends State<FriendsScreen> {
         );
       },
     );
+  }
+
+  Widget _friendMenu(FriendEntry f) => PopupMenuButton<String>(
+        key: ValueKey('friend-menu-${f.id}'),
+        tooltip: 'Options for ${f.name}',
+        color: BmColors.panel,
+        icon: const Icon(Icons.more_vert_rounded, color: BmColors.muted),
+        onSelected: (action) => _friendAction(action, f),
+        itemBuilder: (_) => [
+          for (final (value, label, icon) in const [
+            ('remove', 'Remove friend', Icons.person_remove_rounded),
+            ('block', 'Block', Icons.block_rounded),
+            ('report', 'Report', Icons.flag_outlined),
+          ])
+            PopupMenuItem<String>(
+              value: value,
+              child: Row(
+                children: [
+                  Icon(icon, size: 18, color: BmColors.muted),
+                  const SizedBox(width: 10),
+                  Text(label, style: BmText.body(13)),
+                ],
+              ),
+            ),
+        ],
+      );
+
+  Future<void> _friendAction(String action, FriendEntry f) async {
+    switch (action) {
+      case 'remove':
+        await OnlineRace.service.removeFriend(f.id);
+      case 'block':
+        final sure = await showDialog<bool>(
+          context: context,
+          builder: (dialog) => AlertDialog(
+            backgroundColor: BmColors.panel,
+            title: Text('Block ${f.name}?', style: BmText.display(17)),
+            content: Text(
+                'You will stop being friends, and neither of you can invite '
+                'the other or share a lobby. You can unblock later.',
+                style: BmText.body(13, color: BmColors.muted)),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.of(dialog).pop(false),
+                  child: Text('CANCEL', style: BmText.label(11))),
+              TextButton(
+                  key: const ValueKey('block-confirm'),
+                  onPressed: () => Navigator.of(dialog).pop(true),
+                  child: Text('BLOCK',
+                      style: BmText.label(11, color: BmColors.red))),
+            ],
+          ),
+        );
+        if (sure != true || !mounted) return;
+        final r = await OnlineRace.service.blockPlayer(f.id);
+        if (!mounted) return;
+        _say(r.ok ? '${f.name} is blocked.' : r.message);
+      case 'report':
+        final reason = await pickReportReason<PlayerReportReason>(
+          context,
+          title: 'REPORT ${f.name.toUpperCase()}',
+          reasons: [for (final r in PlayerReportReason.values) (r, r.label)],
+        );
+        if (reason == null || !mounted) return;
+        final r = await OnlineRace.service.reportPlayer(f.id, reason);
+        if (!mounted) return;
+        _say(r.ok ? 'Thanks — ${f.name} was reported.' : r.message);
+        return;
+    }
+    if (mounted) _reload();
   }
 
   Widget _title(String text) => Padding(
