@@ -1,7 +1,0 @@
-{
-  "name": "buzz-masters-supabase-tests",
-  "private": true,
-  "type": "module",
-  "scripts": { "test": "node --test multiplayer.test.mjs monetisation.test.mjs functions.test.mjs account.test.mjs community.test.mjs" },
-  "devDependencies": { "@electric-sql/pglite": "0.2.17" }
-}

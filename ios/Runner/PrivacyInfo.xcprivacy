@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
   Buzz Masters app privacy manifest. Third-party SDKs (Google Mobile Ads,
-  RevenueCat, Supabase, shared_preferences) ship their own manifests, which
+  RevenueCat, Firebase, shared_preferences) ship their own manifests, which
   Xcode merges into the privacy report. Keep this in step with the App Store
   privacy "nutrition label" answers in docs/release-readiness.md.
 -->

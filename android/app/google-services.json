@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "859037874963",
+    "project_id": "buzz-masters-race",
+    "storage_bucket": "buzz-masters-race.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:859037874963:android:74ee7f6d8c48beed7b78e6",
+        "android_client_info": {
+          "package_name": "com.mycompany.buzzmasters"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDK0VSuo_vs5qA4LMknCQGuTU0yEhvarjM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

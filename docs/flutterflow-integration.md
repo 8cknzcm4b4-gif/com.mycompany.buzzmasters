@@ -54,6 +54,8 @@ it.
 
 ## Multiplayer
 
-Online racing runs on Supabase (`docs/multiplayer-backend.md`), not on the
+Online racing runs on Firebase (`docs/firebase-backend.md`), not on the
 older in-app engine in `lib/bm/race/authority/`, which remains for offline
-tests only.
+tests only. A build made by FlutterFlow compiles FlutterFlow's own copy of
+the app, so it would not include this Firebase integration; FlutterFlow's API
+cannot import code.

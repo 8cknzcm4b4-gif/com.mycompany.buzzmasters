@@ -2,7 +2,7 @@
 ///
 /// Every figure comes from the backend's admin summary. A figure with no
 /// connected source renders "Not connected" — this screen never invents a
-/// number, and the database function refuses callers who are not
+/// number, and the adminSummary function refuses callers who are not
 /// administrators.
 library;
 
@@ -14,8 +14,22 @@ import '../../widgets/studio_background.dart';
 import '../bootstrap.dart';
 import '../models.dart';
 
-class AdminMonetisationDashboardScreen extends StatelessWidget {
+class AdminMonetisationDashboardScreen extends StatefulWidget {
   const AdminMonetisationDashboardScreen({super.key});
+
+  @override
+  State<AdminMonetisationDashboardScreen> createState() =>
+      _AdminMonetisationDashboardScreenState();
+}
+
+class _AdminMonetisationDashboardScreenState
+    extends State<AdminMonetisationDashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Only administrators get figures; the server refuses everyone else.
+    BmMonetisation.ensure().then((c) => c.loadAdmin()).ignore();
+  }
 
   @override
   Widget build(BuildContext context) {

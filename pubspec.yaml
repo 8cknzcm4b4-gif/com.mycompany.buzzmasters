@@ -74,8 +74,13 @@ dependencies:
   cupertino_icons: ^1.0.0
   purchases_flutter: ^11.0.0
   google_mobile_ads: ^7.0.0
-  supabase_flutter: ^2.16.0
   audioplayers: ^6.1.0
+  firebase_core: ^5.1.0
+  firebase_auth: ^7.0.1
+  cloud_firestore: ^7.1.0
+  cloud_functions: ^7.0.1
+  firebase_messaging: ^17.0.1
+  firebase_app_check: ^0.5.1
 
 dependency_overrides:
   font_awesome_flutter: 11.0.0

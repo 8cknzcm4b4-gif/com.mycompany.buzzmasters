@@ -19,7 +19,7 @@ abstract final class RaceCode {
 }
 
 /// Error codes returned by the Buzz Masters server (see
-/// supabase/migrations/20261030000100_multiplayer.sql) plus client-side ones.
+/// functions/src/api.ts) plus client-side ones.
 abstract final class OnlineError {
   static const notConfigured = 'not_configured';
   static const offline = 'offline';
@@ -492,7 +492,7 @@ enum QuestionReportReason {
 }
 
 /// The online game API. The real implementation is
-/// [SupabaseOnlineRaceService]; every rule is enforced by the server, so
+/// [FirebaseOnlineRaceService]; every rule is enforced by the server, so
 /// nothing here may decide a lobby exists, an answer is right or who won.
 abstract class OnlineRaceService {
   bool get isConfigured;
@@ -607,7 +607,7 @@ class UnconfiguredOnlineRaceService implements OnlineRaceService {
       const OnlineResult.fail(_no);
 }
 
-/// Process-wide online service, swapped for the Supabase one at start-up
+/// Process-wide online service, swapped for the Firebase one at start-up
 /// when the build is configured, and for fakes in tests.
 abstract final class OnlineRace {
   static OnlineRaceService service = const UnconfiguredOnlineRaceService();

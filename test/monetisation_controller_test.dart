@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:buzz_masters/bm/monetisation/bootstrap.dart';
 import 'package:buzz_masters/bm/monetisation/controller.dart';
 import 'package:buzz_masters/bm/monetisation/gateways.dart';
@@ -560,11 +562,20 @@ void main() {
 
   group('Configuration safety', () {
     test('no credential-shaped strings ship in the app source', () {
-      // Guards against a service key or JWT being pasted into the codebase.
+      // Guards against a service-account key, private key, JWT or the
+      // RevenueCat secret key being pasted into the app. Firebase's own app
+      // keys (lib/firebase_options.dart) are public identifiers by design.
       final suspicious = RegExp(
-        r'(service_role|supabase[_-]?service[_-]?key|-----BEGIN [A-Z ]*PRIVATE KEY|eyJ[A-Za-z0-9_-]{20,})',
+        r'(service_role|"private_key"|-----BEGIN [A-Z ]*PRIVATE KEY|eyJ[A-Za-z0-9_-]{20,}|sk_[A-Za-z0-9]{20,})',
       );
-      expect(suspicious.hasMatch(MonetisationConfig.supabaseAnonKey), isFalse);
+      final files = Directory('lib')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.dart'));
+      for (final f in files) {
+        expect(suspicious.hasMatch(f.readAsStringSync()), isFalse,
+            reason: f.path);
+      }
       expect(
           MonetisationConfig.storeConfigured ||
               MonetisationConfig.revenueCatApiKey.isEmpty,
@@ -575,6 +586,7 @@ void main() {
       final backend = FakeBackend();
       final controller = buildController(backend: backend);
       await controller.load();
+      await controller.loadAdmin();
       expect(controller.revenue.gross.connected, isFalse);
       expect(controller.revenue.gross.formatted, 'Not connected');
     });

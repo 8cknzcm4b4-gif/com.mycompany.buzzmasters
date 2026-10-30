@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../backend/bm_firebase.dart';
 import '../design/bm_theme.dart';
 import '../online/join_game_screen.dart';
 import '../online/online_lobby_screen.dart';
@@ -35,6 +38,13 @@ class _FriendsScreenState extends State<FriendsScreen> {
     setState(() {
       _load = next;
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Asked here, in context, rather than at launch.
+    unawaited(BmPush.register());
   }
 
   @override

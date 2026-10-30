@@ -1,0 +1,15 @@
+rules_version = '2';
+
+// Buzz Masters Cloud Storage rules.
+//
+// The app has no uploads today (racers use a colour, not a photo). Public
+// game, cosmetic and tournament artwork is uploaded by the team from the
+// console and is readable by signed-in players; nothing is writable by
+// clients.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /public/{allPaths=**} {
+      allow read: if request.auth != null;
+    }
+  }
+}

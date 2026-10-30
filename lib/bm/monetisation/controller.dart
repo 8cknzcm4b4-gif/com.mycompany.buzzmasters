@@ -225,7 +225,8 @@ class MonetisationController extends ChangeNotifier {
       _ledger = await backend.fetchWallet(account.id);
       _history = await backend.purchaseHistory(account.id);
       _tournaments = await backend.tournaments();
-      _revenue = await backend.adminSummary();
+      // The admin summary is fetched only by the admin dashboard (loadAdmin),
+      // never for ordinary players.
       _loaded = true;
     } catch (error) {
       _message = 'Could not load the store: $error';

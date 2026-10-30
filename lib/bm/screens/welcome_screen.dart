@@ -4,10 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../design/bm_theme.dart';
 import '../online/join_game_screen.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
-
 import '../backend/account_actions.dart';
-import '../backend/bm_supabase.dart';
+import '../backend/bm_firebase.dart';
 import '../online/online_lobby_screen.dart';
 import '../online/online_race_service.dart';
 import '../race/race_practice_screen.dart';
@@ -345,7 +343,7 @@ class _BmWelcomeScreenState extends State<BmWelcomeScreen>
                 style: BmButtonStyle.white,
                 height: 44,
                 fontSize: 13,
-                onPressed: () => _oauth(OAuthProvider.apple, 'Apple'),
+                onPressed: () => _oauth(BmSignInProvider.apple, 'Apple'),
               ),
             ),
             const SizedBox(width: 8),
@@ -356,7 +354,7 @@ class _BmWelcomeScreenState extends State<BmWelcomeScreen>
                 style: BmButtonStyle.white,
                 height: 44,
                 fontSize: 13,
-                onPressed: () => _oauth(OAuthProvider.google, 'Google'),
+                onPressed: () => _oauth(BmSignInProvider.google, 'Google'),
               ),
             ),
             const SizedBox(width: 8),
@@ -388,7 +386,7 @@ class _BmWelcomeScreenState extends State<BmWelcomeScreen>
     );
   }
 
-  Future<void> _oauth(OAuthProvider provider, String name) =>
+  Future<void> _oauth(BmSignInProvider provider, String name) =>
       AccountActions.oauth(context, provider, name);
 
   Future<void> _email() => AccountActions.email(context);

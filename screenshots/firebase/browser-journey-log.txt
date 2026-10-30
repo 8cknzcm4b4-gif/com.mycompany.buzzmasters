@@ -1,0 +1,119 @@
+shot 01-splash
+OK   sees "JOIN GAME"
+shot 02-welcome
+tap "GET STARTED" @296,446
+OK   sees "ENTER A RACE CODE"
+focus field ok
+tap "JOIN RACE" @195,333
+OK   sees "exactly 6 digits"
+shot 03-join-invalid
+focus field ok
+tap "JOIN RACE" @195,351
+OK   sees "Could not start an online session"
+shot 04-join-server-offline
+tap "Back" @40,30
+OK   sees "GET STARTED"
+tap "Settings" @352,26
+OK   sees "MUSIC"
+shot 05-settings
+tap "Back" @40,30
+tap "Leaderboard" @302,26
+OK   sees "COULD NOT LOAD RANKINGS"
+shot 06-leaderboard
+tap "MY RECORDS" @282,88
+shot 07-leaderboard-records
+tap "Back" @40,30
+tap "How to play" @38,26
+OK   sees "SCORING"
+shot 08-how-to-play
+tap "GOT IT" @195,803
+tap "PLAY NOW" @195,301
+OK   sees "TURBO TRIVIA RACE"
+shot 09-dashboard
+tap "RACE" @117,812
+OK   sees "PRACTICE RACE"
+shot 10-race-lobby
+tap "RANKS" @195,812
+shot 11-tab-ranks
+tap "FRIENDS" @273,812
+OK   sees "COULD NOT LOAD FRIENDS"
+shot 12-tab-friends
+tap "PROFILE" @351,812
+OK   sees "ACHIEVEMENTS"
+shot 13-tab-profile
+tap "RACE" @117,812
+tap "PRACTICE RACE" @195,311
+shot 14-race-countdown
+shot 15-race-question
+answered A @574
+shot 16-race-answer-feedback
+answered A @597
+answered A @597
+shot 17-race-mid-3
+answered A @574
+answered A @574
+answered A @597
+shot 17-race-mid-6
+answered A @597
+answered A @597
+answered A @597
+answered A @597
+answered A @597
+answered A @597
+answered A @597
+answered A @597
+answered A @597
+shot 18-race-later
+answered A @597
+answered A @597
+answered A @597
+answered A @597
+answered A @597
+answered A @597
+answered A @574
+answered A @574
+answered A @574
+answered A @574
+shot 19-race-finish-flash
+OK   sees "RESULTS"
+shot 20-podium
+tap "BACK TO LOBBY" @195,811
+tap "HOME" @39,812
+shot 21-dashboard-after-race
+tap "PROFILE" @351,812
+shot 22-profile-after-race
+tap "HOME" @39,812
+tap "VIP" @296,32
+shot 23-vip
+tap "Back" @36,30
+OK   sees "QUICK PLAY"
+tap "SHOP" @287,591
+shot 24-shop
+tap "Back" @36,30
+tap "CLASSIC SHOW" @103,511
+shot 25-classic-matchmaking
+tap "TRY PRACTICE WITH CPU" @195,746
+shot 26-classic-gameplay
+tap "Quit match" @32,35
+OK   sees "MATCHMAKING"
+tap "Close" @38,30
+OK   sees "QUICK PLAY"
+tap "TIME TRIAL" @195,386
+shot 27-time-trial
+JOURNEY COMPLETE
+
+console errors:
+Failed to load resource: the server responded with a status of 400 ()
+Failed to load resource: the server responded with a status of 400 ()
+Failed to load resource: the server responded with a status of 400 ()
+Failed to load resource: the server responded with a status of 400 ()
+Failed to load resource: the server responded with a status of 400 ()
+Failed to load resource: the server responded with a status of 400 ()
+Failed to load resource: the server responded with a status of 400 ()
+Failed to load resource: the server responded with a status of 400 ()
+Failed to load resource: the server responded with a status of 400 ()
+Failed to load resource: the server responded with a status of 400 ()
+Failed to load resource: the server responded with a status of 400 ()
+Failed to load resource: the server responded with a status of 400 ()
+Access to fetch at 'https://europe-west2-buzz-masters-race.cloudfunctions.net/adminSummary' from origin 'http://localhost:8099' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+Failed to load resource: net::ERR_FAILED

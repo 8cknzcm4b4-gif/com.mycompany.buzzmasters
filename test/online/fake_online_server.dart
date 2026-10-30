@@ -6,8 +6,8 @@ import 'package:buzz_masters/bm/online/online_race_service.dart';
 import 'package:buzz_masters/bm/race/race_model.dart';
 
 /// In-memory stand-in for the Buzz Masters server, following the same rules
-/// as supabase/migrations/20261030000100_multiplayer.sql (which is tested on
-/// real Postgres in supabase/tests). It returns the same JSON shape, so the
+/// as the server engine in functions/src/engine.ts (which is tested on the
+/// Firestore emulator in functions/test). It returns the same JSON shape, so the
 /// client's parsing is exercised too. Time only moves when a test says so.
 class FakeOnlineServer {
   FakeOnlineServer({int seed = 1}) : _rng = Random(seed);

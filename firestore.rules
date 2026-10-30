@@ -1,0 +1,61 @@
+rules_version = '2';
+
+// Buzz Masters security rules.
+//
+// The app never writes Firestore directly: every change goes through Cloud
+// Functions (functions/src), which judge races, apply purchases and rewards,
+// and enforce limits. Clients may only READ their own documents, the rooms
+// they are seated in, published tournaments and the rankings. Everything not
+// listed here is denied. Tested in functions/test/rules.test.ts.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+
+    match /players/{uid} {
+      allow read: if isOwner(uid);
+      match /notifications/{id} {
+        allow read: if isOwner(uid);
+      }
+    }
+
+    // A room is visible only to its racers; answer keys live in
+    // rooms/{id}/secret, which no client can read.
+    match /rooms/{roomId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.memberIds;
+      match /mine/{uid} {
+        allow read: if isOwner(uid);
+      }
+    }
+
+    match /leaderboards/{period}/rows/{uid} {
+      allow read: if signedIn();
+    }
+
+    match /entitlements/{uid} {
+      allow read: if isOwner(uid);
+    }
+    match /inventory/{uid}/items/{itemId} {
+      allow read: if isOwner(uid);
+    }
+    match /wallets/{uid} {
+      allow read: if isOwner(uid);
+      match /ledger/{entry} {
+        allow read: if isOwner(uid);
+      }
+    }
+    match /purchases/{uid}/events/{eventId} {
+      allow read: if isOwner(uid);
+    }
+    match /adRewards/{uid}/events/{eventId} {
+      allow read: if isOwner(uid);
+    }
+
+    match /tournaments/{id} {
+      allow read: if signedIn() && resource.data.status in ['published', 'live', 'closed'];
+      match /entries/{uid} {
+        allow read: if isOwner(uid);
+      }
+    }
+  }
+}

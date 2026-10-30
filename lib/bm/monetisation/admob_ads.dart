@@ -16,7 +16,7 @@ class AdMobRewardedAds implements AdsGateway {
   AdMobRewardedAds({required this.rewardedAdUnitId, this.userId = ''});
 
   /// Sent to AdMob server-side verification so the signed callback names the
-  /// player to credit (the Supabase user id).
+  /// player to credit (the Firebase user id).
   final String userId;
 
   /// Google's TEST unit id while developing. A production unit id must be

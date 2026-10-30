@@ -2,7 +2,7 @@
 ///
 /// The controller talks only to these interfaces, so every rule can be tested
 /// with an in-memory double and the production wiring (RevenueCat, AdMob,
-/// Supabase) sits behind a single adapter file each.
+/// Firebase) sits behind a single adapter file each.
 library;
 
 import 'models.dart';
@@ -145,7 +145,7 @@ class PurchaseSyncResult {
   final String message;
 }
 
-/// Backend used when no Supabase project is configured. It reports "not
+/// Backend used when Firebase is not available. It reports "not
 /// connected" and empty data — it never fabricates ownership or revenue.
 class UnconfiguredBackend implements MonetisationBackend {
   const UnconfiguredBackend();

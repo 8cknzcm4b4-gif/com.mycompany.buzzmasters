@@ -12,13 +12,13 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../design/bm_theme.dart';
-import '../backend/bm_supabase.dart';
+import '../backend/bm_firebase.dart';
 import 'admob_ads.dart';
 import 'controller.dart';
 import 'gateways.dart';
 import 'revenuecat_store.dart';
 import 'rules.dart';
-import 'supabase_backend.dart';
+import 'firebase_backend.dart';
 
 /// Public, non-secret build configuration.
 abstract final class MonetisationConfig {
@@ -40,22 +40,10 @@ abstract final class MonetisationConfig {
     defaultValue: 'ca-app-pub-3940256099942544/5224354917',
   );
 
-  static const supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: '',
-  );
-
-  static const supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: '',
-  );
-
   static bool get storeConfigured => revenueCatApiKey.isNotEmpty;
   static bool get adsConfigured => admobRewardedUnitId.isNotEmpty;
-  static bool get backendConfigured => SupabaseBackend.credentialsPresent(
-        url: supabaseUrl,
-        anonKey: supabaseAnonKey,
-      );
+  /// The Firebase backend is compiled in (lib/firebase_options.dart).
+  static bool get backendConfigured => BmFirebase.isReady;
 }
 
 /// Stable id for the player's game account.
@@ -89,11 +77,11 @@ abstract final class BmMonetisation {
     final existing = _controller;
     if (existing != null) return existing;
 
-    // With a server, the account is the signed-in Supabase user, which is
-    // what the monetisation RLS policies (auth.uid() = account_id) expect.
+    // With a server, the account is the signed-in Firebase user, which is
+    // what the security rules (request.auth.uid == uid) expect.
     final account =
-        await BmSupabase.ensureInitialized() && await BmAuth.ensureSession()
-            ? BmGameAccount(BmSupabase.client.auth.currentUser!.id)
+        await BmFirebase.ensureInitialized() && await BmAuth.ensureSession()
+            ? BmGameAccount(BmAuth.uid!)
             : await GameAccountStore.resolve();
 
     final store = MonetisationConfig.storeConfigured
@@ -111,12 +99,9 @@ abstract final class BmMonetisation {
     if (MonetisationConfig.adsConfigured) await ads.initialise();
 
     final backend = MonetisationConfig.backendConfigured
-        ? SupabaseBackend(
-            url: MonetisationConfig.supabaseUrl,
-            anonKey: MonetisationConfig.supabaseAnonKey,
-          )
+        ? FirebaseBackend()
         : const UnconfiguredBackend();
-    if (backend is SupabaseBackend) await backend.configure();
+    if (backend is FirebaseBackend) await backend.configure();
 
     final controller = MonetisationController(
       store: store,

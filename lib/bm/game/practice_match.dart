@@ -246,7 +246,7 @@ const kPracticeQuestions = <QuizQuestion>[
     id: 'q023',
     category: 'Popular Culture',
     difficulty: 'Easy',
-    text: 'What does "app" short for?',
+    text: 'What is "app" short for?',
     options: ['Application', 'Apparatus', 'Approach', 'Appendix'],
     correctIndex: 0,
     explanation: 'Short for application software.',

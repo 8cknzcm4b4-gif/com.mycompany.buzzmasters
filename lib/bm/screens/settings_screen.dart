@@ -2,10 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
-
 import '../backend/account_actions.dart';
-import '../backend/bm_supabase.dart';
+import '../backend/bm_firebase.dart';
 import '../design/bm_theme.dart';
 import '../monetisation/ui/vip_screen.dart';
 import '../monetisation/ui/admin_dashboard_screen.dart';
@@ -307,12 +305,12 @@ class _AccountPanel extends StatelessWidget {
                     'Sign in with Apple',
                     Icons.apple,
                     () => AccountActions.oauth(
-                        context, OAuthProvider.apple, 'Apple')),
+                        context, BmSignInProvider.apple, 'Apple')),
                 action(
                     'Sign in with Google',
                     Icons.g_mobiledata_rounded,
                     () => AccountActions.oauth(
-                        context, OAuthProvider.google, 'Google')),
+                        context, BmSignInProvider.google, 'Google')),
                 action('Email sign-in or recovery', Icons.mail_rounded,
                     () => AccountActions.email(context)),
               ] else

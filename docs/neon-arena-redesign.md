@@ -72,8 +72,8 @@ does not display hand-written code under `lib/bm/`.
 
 | Blocked | Exact reason | What unblocks it |
 |---|---|---|
-| Online races, Join by code, Resume, friends, global leaderboard | No Buzz Masters backend exists. The only Supabase project connected to this workspace (`azafjqjbvklajsplykyv`) belongs to a different app (tables `wiggles`, `heat_*`, `community_posts`, …) and was **not touched**. The monetisation migration in `supabase/migrations/` has never been applied anywhere. | Create a dedicated Buzz Masters Supabase project and supply `SUPABASE_URL` / `SUPABASE_ANON_KEY`; then implement `OnlineRaceService` against it (the UI, validation, error states and resume rules are already built and tested against a fake server). |
-| Apple / Google / email sign-in | No OAuth client IDs, no auth backend | Supabase project plus Apple Services ID / Google OAuth clients |
+| Online races, Join by code, Resume, friends, global leaderboard | Built on Firebase (`buzz-masters-race`); see `docs/firebase-backend.md`. Live once the Blaze plan is enabled and the Cloud Functions are deployed. | Enable Blaze; deploy Functions. |
+| Apple / Google / email sign-in | Built on Firebase Authentication; not started in the console yet | Start Authentication; enable providers; Apple Services ID / key |
 | Real purchases | No RevenueCat public key | `--dart-define=REVENUECAT_PUBLIC_API_KEY=…` |
 | iOS / Android builds, simulator screenshots | This Mac has only Command Line Tools (no Xcode) and no Android SDK | Build on a machine with Xcode / Android Studio |
 | FlutterFlow sync | API returns 401; GitHub integration not enabled | Connect FlutterFlow to GitHub, or build from this repo |
